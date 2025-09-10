@@ -1,0 +1,827 @@
+<!--
+YT Ops Hub — Single‑File App (GitHub Pages + Firebase)
+Single-file, free-to-host dashboard for managing YouTube channels, competitors, weekly digests, reminders, notes, and saved AI threads.
+
+✅ 100% static: host on GitHub Pages.
+✅ Multi‑user shared workspace via Firebase Auth + Firestore (Spark free tier).
+✅ YouTube Data API v3 fetches (logo, name, subscribers) for your channels & competitors.
+✅ Weekly "DM" digest auto-generates when 7+ days have passed since last digest (client-side snapshot compare).
+✅ Growth leaderboard (relative % growth) and quick stats.
+✅ Reminder table with on‑page notifications (and optional browser notifications if the tab is open).
+✅ "Important Things" board with per‑user color tags so you and your friend are distinguishable.
+✅ Save links to important ChatGPT/Claude conversations (embeds when possible).
+
+— QUICK SETUP —
+1) Create a Firebase project → enable Authentication (Google provider) + Firestore.
+2) Copy your Firebase web config and paste into window.FB_CONFIG below.
+3) (Optional but recommended) Create a YouTube Data API v3 key and paste it into Settings in the app.
+   • Restrict the key to YouTube Data API v3 and your domain (github.io) when you go public.
+4) Deploy: Put this single file as index.html in a GitHub repo → Settings → Pages → Deploy from main → root.
+5) Share a Workspace ID with your friend (Settings → Workspace). You’ll both see the same data.
+
+— FIRESTORE STRUCTURE (all under workspaces/{workspaceId}) —
+settings: { ytApiKey, latestDigestAt }
+channels: { mine: string[], competitors: string[] }
+stats/{channelId}/snapshots/{ISOdate}: { subs, views, ts }
+reminders/{autoId}: { text, dueAt, createdBy, color }
+notes/{autoId}: { text, createdBy, color, createdAt }
+threads/{autoId}: { title, url, createdBy, createdAt }
+digests/{autoId}: { title, body, createdAt }
+
+— SECURITY RULES (paste in Firebase > Firestore Rules). Adjust to your needs —
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /workspaces/{wid}/{document=**} {
+      allow read, write: if request.auth != null && exists(/databases/$(database)/documents/workspaces/$(wid));
+    }
+    // Optionally, gate workspace creation to signed-in users only
+    match /workspaces/{wid} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}
+
+— NOTES —
+• Browser notifications only fire if the page is open (no server). The app shows in‑app banners for due reminders regardless.
+• Weekly digest is generated client‑side the first time someone opens the app after 7+ days; it compares stored snapshots.
+• This is a clean baseline. You can later add Cloud Functions or CRON if you want true background jobs.
+• Tailwind via CDN and tiny UI kit; animations are subtle to keep it smooth on low-end devices.
+-->
+
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YT Ops Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            base: {
+              950: '#0b0f14', 900: '#0e141b', 800: '#101922', 700: '#15202b',
+            },
+            brand: { 500: '#5b8cff', 600: '#3d6cff' },
+            accent: { 500: '#22d3ee' },
+          },
+          boxShadow: {
+            soft: '0 10px 30px -10px rgba(0,0,0,0.4)'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html, body { height: 100%; background: radial-gradient(1200px 600px at 10% -10%, #fde68a33, transparent 60%), radial-gradient(1200px 600px at 100% 0%, #a7f3d033, transparent 60%), #f6f7fb; color: #0f172a; }
+    .card { background: #ffffff; border: 1px solid #e6e9f2; box-shadow: 0 10px 30px -12px rgba(16,24,40,.15); }
+    .glass { background: rgba(255,255,255,0.85); border: 1px solid #e6e9f2; backdrop-filter: blur(10px); }
+    .btn { padding: 0.5rem 0.75rem; border-radius: 1rem; font-weight: 700; transition: transform .12s ease, box-shadow .2s ease; box-shadow: 0 6px 16px -10px rgba(16,24,40,.25); }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #22d3ee); color: #fff !important; }
+    .btn-ghost { background: #eef2ff; color: #0f172a !important; }
+    .pill { font-size: .75rem; padding: .25rem .5rem; border-radius: 9999px; background: #f3f4f6; border: 1px solid #e5e7eb; color: #334155; }
+    .fade-in { animation: fade .5s ease-out both; }
+    @keyframes fade { from { opacity:0; transform: translateY(4px)} to {opacity:1; transform: translateY(0)} }
+  </style>
+</head>
+<body class="font-sans">
+  <!-- Top Bar -->
+  <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 grid place-items-center shadow-soft">📺</div>
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight">YT Ops Hub</h1>
+          <p class="text-xs text-slate-600 -mt-1">Kanal yönetimi • Rakip takibi • Haftalık DM • Hatırlatmalar</p>
+        </div>
+      </div>
+
+      <div class="ml-auto flex items-center gap-2">
+        <button id="dmButton" class="btn btn-ghost flex items-center gap-2" title="DM Kutusu (Haftalık)">✉️ <span class="hidden sm:inline">DM</span><span id="dmCount" class="pill hidden">0</span></button>
+        <button id="notifyButton" class="btn btn-ghost" title="Bildirimleri Aç">🔔</button>
+        <button id="settingsButton" class="btn btn-primary" title="Ayarlar">⚙️ Ayarlar</button>
+        <div id="userBadge" class="pill hidden"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification banner -->
+  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow-soft z-50">
+    <div class="flex items-start gap-3">
+      <div>⏰</div>
+      <div class="flex-1">
+        <div class="font-bold" id="bannerTitle">Hatırlatma</div>
+        <div class="text-sm text-slate-800" id="bannerText"></div>
+      </div>
+      <button class="pill" onclick="document.getElementById('banner').classList.add('hidden')">Kapat</button>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+    <!-- Workspace guard -->
+    <div id="workspaceGuard" class="card rounded-2xl p-5">
+      <h2 class="text-xl font-bold">Workspace seç</h2>
+      <p class="text-slate-700 text-sm mt-1">Aynı Workspace ID’yi arkadaşınla paylaş – tüm veriler ortak olur.</p>
+      <div class="mt-3 flex flex-col sm:flex-row gap-3">
+        <input id="workspaceInput" class="w-full sm:max-w-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="Örn: forest-sleep-pro" />
+        <button id="workspaceSave" class="btn btn-primary">Workspace’e gir</button>
+      </div>
+    </div>
+
+    <!-- Quick Stats & Leaderboard -->
+    <section class="grid md:grid-cols-3 gap-4">
+      <div class="card rounded-2xl p-5 md:col-span-2">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold">Kendi Kanallarımız</h2>
+          <button id="manageMine" class="pill">Yönet</button>
+        </div>
+        <div id="mineGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold">Büyüme Sıralaması</h2>
+          <span class="text-xs text-slate-600">(son hafta)</span>
+        </div>
+        <ol id="leaderboard" class="space-y-2"></ol>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-3 gap-4">
+      <div class="card rounded-2xl p-5 md:col-span-2">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold">Rakip Kanallar</h2>
+          <button id="manageCompetitors" class="pill">Yönet</button>
+        </div>
+        <div id="competitorGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold">DM Kutusu</h2>
+          <span id="dmMiniCount" class="pill hidden">0</span>
+        </div>
+        <div id="dmPreview" class="space-y-2 text-sm text-slate-800"></div>
+        <button id="openDmFromSidebar" class="btn btn-ghost mt-3 w-full">DM’leri Aç</button>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-2 gap-4">
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold">Hatırlatmalar</h2>
+          <button id="addReminder" class="pill">Yeni</button>
+        </div>
+        <div id="reminders" class="space-y-2"></div>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold">Önemli Şeyler</h2>
+          <button id="addNote" class="pill">Yeni</button>
+        </div>
+        <div id="notes" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <section class="card rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-bold">Kaydedilmiş Sohbetler (ChatGPT / Claude)</h2>
+        <button id="addThread" class="pill">Ekle</button>
+      </div>
+      <div id="threads" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </section>
+  </main>
+
+  <!-- Settings Modal -->
+  <dialog id="settingsModal" class="glass rounded-2xl max-w-2xl w-[92%] p-0">
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="text-lg font-bold">Ayarlar</h3>
+      <button class="pill" onclick="settingsModal.close()">Kapat</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="card rounded-2xl p-4">
+          <h4 class="font-bold mb-2">Workspace</h4>
+          <input id="settingsWorkspace" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="forest-sleep-pro" />
+          <button id="saveWorkspace" class="btn btn-primary mt-2">Kaydet</button>
+          <p class="text-xs text-slate-600 mt-2">Aynı Workspace ID ile giriş yapan kullanıcılar aynı veriyi görür.</p>
+        </div>
+        <div class="card rounded-2xl p-4">
+          <h4 class="font-bold mb-2">YouTube API Key</h4>
+          <input id="settingsApiKey" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="AIza..." />
+          <button id="saveApiKey" class="btn btn-primary mt-2">Kaydet</button>
+          <p class="text-xs text-slate-600 mt-2">Restrict: YouTube Data API v3 + github.io domain</p>
+        </div>
+      </div>
+
+      <div class="card rounded-2xl p-4">
+        <h4 class="font-bold mb-2">Kendi Kanalları Yönet</h4>
+        <div class="flex gap-2">
+          <input id="mineNew" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="Kanal ID (UC...)" />
+          <button id="mineAdd" class="btn btn-ghost">Ekle</button>
+        </div>
+        <div id="mineList" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="card rounded-2xl p-4">
+        <h4 class="font-bold mb-2">Rakip Kanalları Yönet</h4>
+        <div class="flex gap-2">
+          <input id="compNew" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="Kanal ID (UC...)" />
+          <button id="compAdd" class="btn btn-ghost">Ekle</button>
+        </div>
+        <div id="compList" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="card rounded-2xl p-4">
+        <h4 class="font-bold mb-2">Test / Yardım</h4>
+        <div class="flex gap-2 flex-wrap">
+          <button id="forceDigest" class="btn btn-ghost">Bu haftalık DM oluştur</button>
+          <button id="clearLocal" class="btn btn-ghost">Yerel ayarları temizle</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- DM Modal -->
+  <dialog id="dmModal" class="glass rounded-2xl max-w-3xl w-[92%] p-0">
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="text-lg font-bold">DM Kutusu (Haftalık Gazete)</h3>
+      <button class="pill" onclick="dmModal.close()">Kapat</button>
+    </div>
+    <div id="dmContainer" class="p-5 space-y-3 max-h-[70vh] overflow-y-auto"></div>
+  </dialog>
+
+  <!-- Simple UI helpers -->
+  <template id="channelCardTpl">
+    <a class="card rounded-2xl p-3 flex items-center gap-3 hover:scale-[1.01] transition" target="_blank" rel="noopener">
+      <img class="h-10 w-10 rounded-xl object-cover" />
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold truncate"></div>
+        <div class="text-xs text-slate-700"><span class="subs">—</span> abone</div>
+      </div>
+      <div class="text-slate-400">➜</div>
+    </a>
+  </template>
+
+  <!-- Firebase + App Script -->
+  <script>
+    // 1) Fill this with your Firebase project config
+    window.FB_CONFIG = {
+      apiKey: "", // paste from Firebase console
+      authDomain: "",
+      projectId: "",
+      appId: "",
+    };
+  </script>
+  <script type="module">
+    // ===== Imports (Firebase CDN ESM) =====
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, addDoc, deleteDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+
+    // ===== App State =====
+    const app = initializeApp(window.FB_CONFIG);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let workspaceId = localStorage.getItem('workspaceId') || '';
+
+    // Elements
+    const el = id => document.getElementById(id);
+    const workspaceGuard = el('workspaceGuard');
+    const workspaceInput = el('workspaceInput');
+    const workspaceSave = el('workspaceSave');
+    const userBadge = el('userBadge');
+
+    const settingsModal = el('settingsModal');
+    const settingsButton = el('settingsButton');
+    const settingsWorkspace = el('settingsWorkspace');
+    const settingsApiKey = el('settingsApiKey');
+
+    const mineGrid = el('mineGrid');
+    const competitorGrid = el('competitorGrid');
+    const leaderboard = el('leaderboard');
+    const dmPreview = el('dmPreview');
+    const dmMiniCount = el('dmMiniCount');
+    const dmButton = el('dmButton');
+    const dmModal = el('dmModal');
+    const dmContainer = el('dmContainer');
+    const dmCount = el('dmCount');
+    const openDmFromSidebar = el('openDmFromSidebar');
+
+    const banner = el('banner');
+    const bannerTitle = el('bannerTitle');
+    const bannerText = el('bannerText');
+    const notifyButton = el('notifyButton');
+
+    const addReminderBtn = el('addReminder');
+    const remindersEl = el('reminders');
+
+    const addNoteBtn = el('addNote');
+    const notesEl = el('notes');
+
+    const addThreadBtn = el('addThread');
+    const threadsEl = el('threads');
+
+    const manageMine = el('manageMine');
+    const mineList = el('mineList');
+    const mineNew = el('mineNew');
+    const mineAdd = el('mineAdd');
+
+    const manageCompetitors = el('manageCompetitors');
+    const compList = el('compList');
+    const compNew = el('compNew');
+    const compAdd = el('compAdd');
+
+    const forceDigest = el('forceDigest');
+    const clearLocal = el('clearLocal');
+
+    // Utility
+    const fmt = new Intl.NumberFormat('tr-TR');
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const userColor = uid => {
+      // stable pastel per user
+      const seed = Array.from(uid || 'anon').reduce((a,c)=>a+c.charCodeAt(0),0);
+      const hue = seed % 360;
+      return `hsl(${hue} 80% 60% / 0.9)`;
+    };
+
+    function createChip(text, onRemove) {
+      const span = document.createElement('span');
+      span.className = 'pill flex items-center gap-2';
+      span.textContent = text;
+      const x = document.createElement('button');
+      x.className = 'text-slate-600 hover:text-white';
+      x.textContent = '×';
+      x.onclick = onRemove;
+      span.appendChild(x);
+      return span;
+    }
+
+    // ===== Auth & Workspace =====
+    async function ensureAuth() {
+      return new Promise((resolve) => {
+        onAuthStateChanged(auth, async (user) => {
+          if (!user) {
+            // Popup Google
+            const provider = new GoogleAuthProvider();
+            try {
+              const res = await signInWithPopup(auth, provider);
+              currentUser = res.user;
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            currentUser = user;
+          }
+          if (currentUser) {
+            userBadge.classList.remove('hidden');
+            userBadge.textContent = currentUser.displayName || currentUser.email;
+            userBadge.style.borderColor = 'transparent';
+            userBadge.style.background = userColor(currentUser.uid);
+          }
+          resolve(currentUser);
+        });
+      });
+    }
+
+    function applyWorkspaceUi() {
+      if (!workspaceId) {
+        workspaceGuard.classList.remove('hidden');
+      } else {
+        workspaceGuard.classList.add('hidden');
+      }
+    }
+
+    workspaceInput.value = workspaceId;
+    workspaceSave.onclick = () => {
+      workspaceId = workspaceInput.value.trim();
+      if (!workspaceId) return;
+      localStorage.setItem('workspaceId', workspaceId);
+      location.reload();
+    };
+
+    // Settings modal
+    settingsButton.onclick = () => {
+      settingsWorkspace.value = workspaceId;
+      settingsModal.showModal();
+      loadSettingsPanel();
+    };
+    el('saveWorkspace').onclick = async () => {
+      const newId = settingsWorkspace.value.trim();
+      if (!newId) return;
+      localStorage.setItem('workspaceId', newId);
+      workspaceId = newId;
+      settingsModal.close();
+      location.reload();
+    };
+
+    // ===== Firestore helpers =====
+    const wsDoc = (...path) => doc(db, 'workspaces', workspaceId, ...path);
+    const wsRoot = () => doc(db, 'workspaces', workspaceId);
+
+    async function ensureWorkspaceDocs() {
+      const rootRef = wsRoot();
+      const rootSnap = await getDoc(rootRef);
+      if (!rootSnap.exists()) {
+        await setDoc(rootRef, { createdAt: Date.now() });
+      }
+      const channelsRef = wsDoc('channels');
+      if (!(await getDoc(channelsRef)).exists()) {
+        await setDoc(channelsRef, { mine: [], competitors: [] });
+      }
+      const settingsRef = wsDoc('settings');
+      if (!(await getDoc(settingsRef)).exists()) {
+        await setDoc(settingsRef, { ytApiKey: '', latestDigestAt: 0 });
+      }
+    }
+
+    async function loadSettingsPanel() {
+      if (!workspaceId) return;
+      const st = await getDoc(wsDoc('settings'));
+      const data = st.data() || {};
+      settingsApiKey.value = data.ytApiKey || '';
+
+      const ch = await getDoc(wsDoc('channels'));
+      const chData = ch.data() || { mine: [], competitors: [] };
+      renderChipList(mineList, chData.mine, async (id) => {
+        const arr = chData.mine.filter(x => x !== id);
+        await updateDoc(wsDoc('channels'), { mine: arr });
+        loadSettingsPanel();
+      });
+      renderChipList(compList, chData.competitors, async (id) => {
+        const arr = chData.competitors.filter(x => x !== id);
+        await updateDoc(wsDoc('channels'), { competitors: arr });
+        loadSettingsPanel();
+      });
+    }
+
+    function renderChipList(target, arr, onRemove) {
+      target.innerHTML = '';
+      for (const id of arr) target.appendChild(createChip(id, () => onRemove(id)));
+    }
+
+    el('saveApiKey').onclick = async () => {
+      await updateDoc(wsDoc('settings'), { ytApiKey: settingsApiKey.value.trim() });
+      alert('API key kaydedildi.');
+    };
+
+    mineAdd.onclick = async () => {
+      const id = mineNew.value.trim();
+      if (!id) return;
+      const snap = await getDoc(wsDoc('channels'));
+      const data = snap.data();
+      if (!data.mine.includes(id)) data.mine.push(id);
+      await updateDoc(wsDoc('channels'), data);
+      mineNew.value = '';
+      loadSettingsPanel();
+    };
+    compAdd.onclick = async () => {
+      const id = compNew.value.trim();
+      if (!id) return;
+      const snap = await getDoc(wsDoc('channels'));
+      const data = snap.data();
+      if (!data.competitors.includes(id)) data.competitors.push(id);
+      await updateDoc(wsDoc('channels'), data);
+      compNew.value = '';
+      loadSettingsPanel();
+    };
+
+    manageMine.onclick = () => settingsModal.showModal();
+    manageCompetitors.onclick = () => settingsModal.showModal();
+
+    clearLocal.onclick = () => { localStorage.clear(); alert('Local temizlendi. Sayfayı yenileyin.'); };
+
+    // ===== YouTube API =====
+    async function fetchChannels(ytKey, ids) {
+      if (!ids?.length) return [];
+      const chunks = [];
+      for (let i=0; i<ids.length; i+=50) chunks.push(ids.slice(i,i+50));
+      const results = [];
+      for (const group of chunks) {
+        const url = new URL('https://www.googleapis.com/youtube/v3/channels');
+        url.searchParams.set('part', 'snippet,statistics');
+        url.searchParams.set('id', group.join(','));
+        url.searchParams.set('key', ytKey);
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn('YouTube API error', await res.text());
+          continue;
+        }
+        const data = await res.json();
+        results.push(...data.items.map(it => ({
+          id: it.id,
+          title: it.snippet.title,
+          logo: it.snippet.thumbnails?.default?.url || it.snippet.thumbnails?.high?.url,
+          subs: Number(it.statistics.subscriberCount || 0),
+          views: Number(it.statistics.viewCount || 0),
+          url: `https://www.youtube.com/channel/${it.id}`
+        })));
+      }
+      return results;
+    }
+
+    function renderChannelGrid(target, list) {
+      target.innerHTML = '';
+      const tpl = document.getElementById('channelCardTpl');
+      for (const ch of list) {
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        node.href = ch.url;
+        node.querySelector('img').src = ch.logo;
+        node.querySelector('div > div.font-semibold').textContent = ch.title;
+        node.querySelector('.subs').textContent = fmt.format(ch.subs);
+        target.appendChild(node);
+      }
+    }
+
+    async function snapshotChannels(channels) {
+      // Save today snapshot for growth calculations
+      const today = new Date(); today.setHours(0,0,0,0);
+      const key = today.toISOString().slice(0,10);
+      for (const ch of channels) {
+        const ref = doc(db, 'workspaces', workspaceId, 'stats', ch.id, 'snapshots', key);
+        await setDoc(ref, { subs: ch.subs, views: ch.views, ts: Date.now() }, { merge: true });
+      }
+    }
+
+    async function getSnapshot(channelId, isoDate) {
+      const snap = await getDoc(doc(db, 'workspaces', workspaceId, 'stats', channelId, 'snapshots', isoDate));
+      return snap.exists() ? snap.data() : null;
+    }
+
+    // ===== DM (Weekly Digest) =====
+    function renderNewspaper(dm) {
+      const card = document.createElement('article');
+      card.className = 'card rounded-2xl p-4 fade-in';
+      const title = document.createElement('h4');
+      title.className = 'font-extrabold text-xl mb-1';
+      title.textContent = dm.title;
+      const body = document.createElement('div');
+      body.className = 'text-sm text-slate-800 whitespace-pre-wrap';
+      body.textContent = dm.body;
+      card.appendChild(title); card.appendChild(body);
+      return card;
+    }
+
+    function digestTextFromStats(statsList) {
+      // statsList: [{title, deltaSubs, deltaViews, growthPctSubs}]
+      const fastest = [...statsList].sort((a,b)=>b.growthPctSubs - a.growthPctSubs)[0];
+      const lines = [
+        `Bu hafta özet: ${statsList.length} kanalda güncelleme.`,
+        fastest ? `En hızlı büyüyen: ${fastest.title} (+${fmt.format(fastest.deltaSubs)} abone, ${fastest.growthPctSubs.toFixed(2)}%).` : '',
+        '',
+        ...statsList.map(s => `• ${s.title}: +${fmt.format(s.deltaSubs)} abone, +${fmt.format(s.deltaViews)} izlenme (${s.growthPctSubs.toFixed(2)}% abone büyümesi)`).filter(Boolean)
+      ];
+      return lines.join('\n');
+    }
+
+    async function maybeCreateWeeklyDigest(mychannels) {
+      const stSnap = await getDoc(wsDoc('settings'));
+      const st = stSnap.data() || { latestDigestAt: 0 };
+      const weekMs = 7*24*3600*1000;
+      const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
+      if (!due) return false;
+
+      // Compare with snapshot 7 days ago (or closest earlier we have)
+      const d = new Date(); d.setHours(0,0,0,0);
+      const todayIso = d.toISOString().slice(0,10);
+      const past = new Date(d.getTime()-7*24*3600*1000);
+      const pastIso = past.toISOString().slice(0,10);
+
+      const statsList = [];
+      for (const ch of mychannels) {
+        const nowSnap = await getSnapshot(ch.id, todayIso) || { subs: ch.subs, views: ch.views };
+        const pastSnap = await getSnapshot(ch.id, pastIso) || { subs: ch.subs, views: ch.views };
+        const deltaSubs = Math.max(0, (nowSnap.subs||0) - (pastSnap.subs||0));
+        const deltaViews = Math.max(0, (nowSnap.views||0) - (pastSnap.views||0));
+        const growthPctSubs = (pastSnap.subs||0) > 0 ? (deltaSubs / pastSnap.subs) * 100 : 0;
+        statsList.push({ title: ch.title, deltaSubs, deltaViews, growthPctSubs });
+      }
+
+      const body = digestTextFromStats(statsList);
+      const dm = { title: `Haftalık Rapor — ${new Date().toLocaleDateString('tr-TR')}`, body, createdAt: Date.now() };
+      await addDoc(collection(db, 'workspaces', workspaceId, 'digests'), dm);
+      await updateDoc(wsDoc('settings'), { latestDigestAt: Date.now() });
+      return true;
+    }
+
+    function renderDmPreview(items) {
+      dmPreview.innerHTML = '';
+      for (const it of items.slice(0,2)) {
+        const div = document.createElement('div');
+        div.className = 'glass rounded-xl p-3';
+        div.innerHTML = `<div class="font-bold">${it.title}</div><div class="text-xs text-slate-700">${new Date(it.createdAt).toLocaleString('tr-TR')}</div>`;
+        dmPreview.appendChild(div);
+      }
+      dmMiniCount.textContent = String(items.length);
+      dmMiniCount.classList.toggle('hidden', items.length === 0);
+      dmCount.textContent = String(items.length);
+      dmCount.classList.toggle('hidden', items.length === 0);
+    }
+
+    // ===== Reminders =====
+    async function addReminder() {
+      const text = prompt('Hatırlatma metni');
+      if (!text) return;
+      const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)');
+      if (!when) return;
+      const dueAt = new Date(when.replace(' ', 'T')).getTime();
+      await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
+        text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
+      });
+    }
+
+    function renderReminders(list) {
+      remindersEl.innerHTML = '';
+      for (const r of list) {
+        const row = document.createElement('div');
+        row.className = 'glass rounded-xl p-3 flex items-center gap-3';
+        const dot = document.createElement('div');
+        dot.className = 'h-3 w-3 rounded-full';
+        dot.style.background = r.color;
+        const meta = document.createElement('div');
+        meta.className = 'flex-1';
+        meta.innerHTML = `<div class="font-semibold">${r.text}</div><div class="text-xs text-slate-700">${new Date(r.dueAt).toLocaleString('tr-TR')}</div>`;
+        const del = document.createElement('button');
+        del.className = 'pill'; del.textContent = 'Sil';
+        del.onclick = async () => await deleteDoc(doc(db, 'workspaces', workspaceId, 'reminders', r.id));
+        row.append(dot, meta, del);
+        remindersEl.appendChild(row);
+      }
+    }
+
+    function checkReminders(list) {
+      const now = Date.now();
+      for (const r of list) {
+        if (!r._fired && r.dueAt <= now) {
+          r._fired = true;
+          bannerTitle.textContent = 'Hatırlatma';
+          bannerText.textContent = r.text;
+          banner.classList.remove('hidden');
+          // Optional browser Notification
+          if (Notification?.permission === 'granted') new Notification('Hatırlatma', { body: r.text });
+        }
+      }
+    }
+
+    // ===== Notes =====
+    async function addNote() {
+      const text = prompt('Not içeriği'); if (!text) return;
+      await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
+        text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
+      });
+    }
+    function renderNotes(list) {
+      notesEl.innerHTML = '';
+      for (const n of list) {
+        const row = document.createElement('div');
+        row.className = 'glass rounded-xl p-3 flex items-start gap-3';
+        const tag = document.createElement('div');
+        tag.className = 'pill mt-1'; tag.textContent = '•';
+        tag.style.background = n.color; tag.style.borderColor = 'transparent';
+        const meta = document.createElement('div');
+        meta.className = 'flex-1';
+        meta.innerHTML = `<div>${n.text}</div><div class="text-xs text-slate-600 mt-1">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>`;
+        const del = document.createElement('button'); del.className = 'pill'; del.textContent = 'Sil';
+        del.onclick = async () => await deleteDoc(doc(db, 'workspaces', workspaceId, 'notes', n.id));
+        row.append(tag, meta, del); notesEl.appendChild(row);
+      }
+    }
+
+    // ===== Threads =====
+    async function addThread() {
+      const title = prompt('Başlık'); if (!title) return;
+      const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
+      await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
+        title, url, createdBy: currentUser.uid, createdAt: Date.now()
+      });
+    }
+    function renderThreads(list) {
+      threadsEl.innerHTML = '';
+      for (const t of list) {
+        const a = document.createElement('a');
+        a.href = t.url; a.target = '_blank'; a.rel = 'noopener';
+        a.className = 'card rounded-2xl p-3 block hover:scale-[1.01] transition';
+        a.innerHTML = `<div class="font-semibold">${t.title}</div><div class="text-xs text-slate-700 truncate">${t.url}</div>`;
+        threadsEl.appendChild(a);
+      }
+    }
+
+    // ===== Leaderboard =====
+    function renderLeaderboard(list) {
+      leaderboard.innerHTML = '';
+      const sorted = [...list].sort((a,b)=>b.growthPctSubs - a.growthPctSubs).slice(0, 10);
+      let i=1;
+      for (const s of sorted) {
+        const li = document.createElement('li');
+        li.className = 'glass rounded-xl p-3 flex items-center justify-between';
+        li.innerHTML = `<div class="flex items-center gap-2"><div class="pill">#${i++}</div><div>${s.title}</div></div><div class="text-sm text-slate-800 font-semibold">${s.growthPctSubs.toFixed(2)}%</div>`;
+        leaderboard.appendChild(li);
+      }
+    }
+
+    // ===== DM UI =====
+    dmButton.onclick = () => dmModal.showModal();
+    openDmFromSidebar.onclick = () => dmModal.showModal();
+
+    // Request Notifications
+    notifyButton.onclick = async () => {
+      if (!('Notification' in window)) return alert('Tarayıcı bildirimleri desteklenmiyor.');
+      const perm = await Notification.requestPermission();
+      alert(perm === 'granted' ? 'Bildirimler aktif.' : 'Bildirim verilmedi.');
+    };
+
+    // ===== Init Flow =====
+    applyWorkspaceUi();
+    if (!workspaceId) {
+      // Wait for workspace set
+    } else {
+      await ensureAuth();
+      await ensureWorkspaceDocs();
+
+      // Live digests list
+      onSnapshot(query(collection(db, 'workspaces', workspaceId, 'digests'), orderBy('createdAt','desc')), (qs) => {
+        const items = qs.docs.map(d => ({ id: d.id, ...d.data() }));
+        dmContainer.innerHTML = '';
+        items.forEach(it => dmContainer.appendChild(renderNewspaper(it)));
+        renderDmPreview(items);
+      });
+
+      // Live reminders
+      let remindersCache = [];
+      onSnapshot(query(collection(db, 'workspaces', workspaceId, 'reminders'), orderBy('dueAt','asc')), (qs) => {
+        remindersCache = qs.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderReminders(remindersCache);
+      });
+      setInterval(()=>checkReminders(remindersCache), 5_000);
+
+      // Live notes
+      onSnapshot(query(collection(db, 'workspaces', workspaceId, 'notes'), orderBy('createdAt','desc')), (qs) => {
+        renderNotes(qs.docs.map(d => ({ id:d.id, ...d.data() })));
+      });
+
+      // Live threads
+      onSnapshot(query(collection(db, 'workspaces', workspaceId, 'threads'), orderBy('createdAt','desc')), (qs) => {
+        renderThreads(qs.docs.map(d => ({ id:d.id, ...d.data() })));
+      });
+
+      // Buttons
+      addReminderBtn.onclick = addReminder;
+      addNoteBtn.onclick = addNote;
+      addThreadBtn.onclick = addThread;
+
+      // Channels + Leaderboard
+      onSnapshot(wsDoc('settings'), async (stSnap) => {
+        const st = stSnap.data() || {};
+        const ytKey = st.ytApiKey || '';
+        const chSnap = await getDoc(wsDoc('channels'));
+        const ch = chSnap.data() || { mine: [], competitors: [] };
+
+        // Fetch current data
+        const [mine, comps] = await Promise.all([
+          fetchChannels(ytKey, ch.mine).catch(()=>[]),
+          fetchChannels(ytKey, ch.competitors).catch(()=>[]),
+        ]);
+
+        renderChannelGrid(mineGrid, mine);
+        renderChannelGrid(competitorGrid, comps);
+
+        // Save today snapshot for our channels
+        await snapshotChannels(mine);
+
+        // Build leaderboard from weekly deltas (ours only)
+        const d = new Date(); d.setHours(0,0,0,0);
+        const todayIso = d.toISOString().slice(0,10);
+        const past = new Date(d.getTime()-7*24*3600*1000);
+        const pastIso = past.toISOString().slice(0,10);
+
+        const weekly = [];
+        for (const ch of mine) {
+          const nowSnap = await getSnapshot(ch.id, todayIso) || { subs: ch.subs, views: ch.views };
+          const pastSnap = await getSnapshot(ch.id, pastIso) || { subs: ch.subs, views: ch.views };
+          const deltaSubs = Math.max(0, (nowSnap.subs||0) - (pastSnap.subs||0));
+          const growthPctSubs = (pastSnap.subs||0) > 0 ? (deltaSubs / pastSnap.subs) * 100 : 0;
+          weekly.push({ title: ch.title, growthPctSubs });
+        }
+        renderLeaderboard(weekly);
+
+        // Maybe create a fresh weekly digest (once per 7d)
+        const created = await maybeCreateWeeklyDigest(mine);
+        if (created) {
+          // flash banner
+          bannerTitle.textContent = 'Yeni Haftalık Rapor';
+          bannerText.textContent = 'DM kutusuna yeni bir gazete düştü!';
+          banner.classList.remove('hidden'); setTimeout(()=>banner.classList.add('hidden'), 5000);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
