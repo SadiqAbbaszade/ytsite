@@ -13,41 +13,32 @@
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-          colors: {
-            base: {
-              950: '#0b0f14', 900: '#0e141b', 800: '#101922', 700: '#15202b',
-            },
-            brand: { 500: '#5b8cff', 600: '#3d6cff' },
-            accent: { 500: '#22d3ee' },
-          },
-          boxShadow: {
-            soft: '0 10px 30px -10px rgba(0,0,0,0.4)'
-          }
         }
       }
     }
   </script>
   <style>
-    html, body { height: 100%; background: #0e141b; color: #e6eef7; }
-    .card { background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(6px); }
-    .glass { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
-    .btn { @apply px-3 py-2 rounded-2xl font-semibold transition hover:opacity-90; }
-    .btn-primary { @apply bg-blue-600 text-white; }
-    .btn-ghost { @apply bg-white/5 text-white; }
-    .pill { @apply text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10; }
+    html, body { height: 100%; background: radial-gradient(1200px 600px at 10% -10%, #fde68a33, transparent 60%), radial-gradient(1200px 600px at 100% 0%, #a7f3d033, transparent 60%), #f6f7fb; color: #0f172a; }
+    .card { background: #ffffff; border: 1px solid #e6e9f2; box-shadow: 0 10px 30px -12px rgba(16,24,40,.15); }
+    .glass { background: rgba(255,255,255,0.85); border: 1px solid #e6e9f2; backdrop-filter: blur(10px); }
+    .btn { padding: 0.5rem 0.75rem; border-radius: 1rem; font-weight: 700; transition: transform .12s ease, box-shadow .2s ease; box-shadow: 0 6px 16px -10px rgba(16,24,40,.25); }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #22d3ee); color: #fff !important; }
+    .btn-ghost { background: #eef2ff; color: #0f172a !important; }
+    .pill { font-size: .75rem; padding: .25rem .5rem; border-radius: 9999px; background: #f3f4f6; border: 1px solid #e5e7eb; color: #334155; }
     .fade-in { animation: fade .5s ease-out both; }
     @keyframes fade { from { opacity:0; transform: translateY(4px)} to {opacity:1; transform: translateY(0)} }
   </style>
 </head>
 <body class="font-sans">
   <!-- Top Bar -->
-  <header class="sticky top-0 z-40 border-b border-white/10 bg-base-900/80 backdrop-blur">
+  <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
     <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
       <div class="flex items-center gap-3">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 grid place-items-center shadow-soft">📺</div>
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center shadow">📺</div>
         <div>
           <h1 class="text-lg font-extrabold tracking-tight">YT Ops Hub</h1>
-          <p class="text-xs text-white/60 -mt-1">Kanal yönetimi • Rakip takibi • Haftalık DM • Hatırlatmalar</p>
+          <p class="text-xs text-slate-600 -mt-1">Kanal yönetimi • Rakip takibi • Haftalık DM • Hatırlatmalar</p>
         </div>
       </div>
 
@@ -61,12 +52,12 @@
   </header>
 
   <!-- Notification banner -->
-  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow-soft z-50">
+  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow z-50">
     <div class="flex items-start gap-3">
       <div>⏰</div>
       <div class="flex-1">
         <div class="font-bold" id="bannerTitle">Hatırlatma</div>
-        <div class="text-sm text-white/80" id="bannerText"></div>
+        <div class="text-sm text-slate-800" id="bannerText"></div>
       </div>
       <button class="pill" onclick="document.getElementById('banner').classList.add('hidden')">Kapat</button>
     </div>
@@ -76,9 +67,9 @@
     <!-- Workspace guard -->
     <div id="workspaceGuard" class="card rounded-2xl p-5">
       <h2 class="text-xl font-bold">Workspace seç</h2>
-      <p class="text-white/70 text-sm mt-1">Aynı Workspace ID’yi arkadaşınla paylaş – tüm veriler ortak olur.</p>
+      <p class="text-slate-700 text-sm mt-1">Aynı Workspace ID’yi arkadaşınla paylaş – tüm veriler ortak olur.</p>
       <div class="mt-3 flex flex-col sm:flex-row gap-3">
-        <input id="workspaceInput" class="w-full sm:max-w-xs bg-white/5 border border-white/10 rounded-xl px-3 py-2" placeholder="Örn: forest-sleep-pro" />
+        <input id="workspaceInput" class="w-full sm:max-w-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="Örn: forest-sleep-pro" />
         <button id="workspaceSave" class="btn btn-primary">Workspace’e gir</button>
       </div>
     </div>
@@ -95,7 +86,7 @@
       <div class="card rounded-2xl p-5">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-bold">Büyüme Sıralaması</h2>
-          <span class="text-xs text-white/60">(son hafta)</span>
+          <span class="text-xs text-slate-600">(son hafta)</span>
         </div>
         <ol id="leaderboard" class="space-y-2"></ol>
       </div>
@@ -114,7 +105,7 @@
           <h2 class="text-lg font-bold">DM Kutusu</h2>
           <span id="dmMiniCount" class="pill hidden">0</span>
         </div>
-        <div id="dmPreview" class="space-y-2 text-sm text-white/80"></div>
+        <div id="dmPreview" class="space-y-2 text-sm text-slate-800"></div>
         <button id="openDmFromSidebar" class="btn btn-ghost mt-3 w-full">DM’leri Aç</button>
       </div>
     </section>
@@ -147,7 +138,7 @@
 
   <!-- Settings Modal -->
   <dialog id="settingsModal" class="glass rounded-2xl max-w-2xl w-[92%] p-0">
-    <div class="p-5 border-b border-white/10 flex items-center justify-between">
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
       <h3 class="text-lg font-bold">Ayarlar</h3>
       <button class="pill" onclick="settingsModal.close()">Kapat</button>
     </div>
@@ -155,22 +146,22 @@
       <div class="grid sm:grid-cols-2 gap-4">
         <div class="card rounded-2xl p-4">
           <h4 class="font-bold mb-2">Workspace</h4>
-          <input id="settingsWorkspace" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2" placeholder="forest-sleep-pro" />
+          <input id="settingsWorkspace" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="forest-sleep-pro" />
           <button id="saveWorkspace" class="btn btn-primary mt-2">Kaydet</button>
-          <p class="text-xs text-white/60 mt-2">Aynı Workspace ID ile giriş yapan kullanıcılar aynı veriyi görür.</p>
+          <p class="text-xs text-slate-600 mt-2">Aynı Workspace ID ile giriş yapan kullanıcılar aynı veriyi görür.</p>
         </div>
         <div class="card rounded-2xl p-4">
           <h4 class="font-bold mb-2">YouTube API Key</h4>
-          <input id="settingsApiKey" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2" placeholder="AIza..." />
+          <input id="settingsApiKey" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="AIza..." />
           <button id="saveApiKey" class="btn btn-primary mt-2">Kaydet</button>
-          <p class="text-xs text-white/60 mt-2">Restrict: YouTube Data API v3 + github.io domain</p>
+          <p class="text-xs text-slate-600 mt-2">Restrict: YouTube Data API v3 + github.io domain</p>
         </div>
       </div>
 
       <div class="card rounded-2xl p-4">
         <h4 class="font-bold mb-2">Kendi Kanalları Yönet</h4>
         <div class="flex gap-2">
-          <input id="mineNew" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2" placeholder="Kanal ID (UC...)" />
+          <input id="mineNew" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="Kanal ID (UC...)" />
           <button id="mineAdd" class="btn btn-ghost">Ekle</button>
         </div>
         <div id="mineList" class="mt-2 flex flex-wrap gap-2"></div>
@@ -179,7 +170,7 @@
       <div class="card rounded-2xl p-4">
         <h4 class="font-bold mb-2">Rakip Kanalları Yönet</h4>
         <div class="flex gap-2">
-          <input id="compNew" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2" placeholder="Kanal ID (UC...)" />
+          <input id="compNew" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" placeholder="Kanal ID (UC...)" />
           <button id="compAdd" class="btn btn-ghost">Ekle</button>
         </div>
         <div id="compList" class="mt-2 flex flex-wrap gap-2"></div>
@@ -197,7 +188,7 @@
 
   <!-- DM Modal -->
   <dialog id="dmModal" class="glass rounded-2xl max-w-3xl w-[92%] p-0">
-    <div class="p-5 border-b border-white/10 flex items-center justify-between">
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
       <h3 class="text-lg font-bold">DM Kutusu (Haftalık Gazete)</h3>
       <button class="pill" onclick="dmModal.close()">Kapat</button>
     </div>
@@ -210,14 +201,14 @@
       <img class="h-10 w-10 rounded-xl object-cover" />
       <div class="flex-1 min-w-0">
         <div class="font-semibold truncate"></div>
-        <div class="text-xs text-white/70"><span class="subs">—</span> abone</div>
+        <div class="text-xs text-slate-700"><span class="subs">—</span> abone</div>
       </div>
-      <div class="text-white/40">➜</div>
+      <div class="text-slate-400">➜</div>
     </a>
   </template>
 
-  <!-- Firebase + App Script -->
-   <script>
+  <!-- Firebase Config -->
+  <script>
     window.FB_CONFIG = {
       apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
       authDomain: "yt-sayt.firebaseapp.com",
@@ -228,17 +219,17 @@
     };
   </script>
 
+  <!-- App Script -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+    // ===== Imports (Firebase CDN ESM) =====
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, addDoc, deleteDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 
+    // ===== App State =====
     const app = initializeApp(window.FB_CONFIG);
     const auth = getAuth(app);
     const db = getFirestore(app);
-
-    // buradan sonra diğer kodun (kanallar, DM, hatırlatma vs.) aynı kalıyor
-  </script>
 
     let currentUser = null;
     let workspaceId = localStorage.getItem('workspaceId') || '';
@@ -297,7 +288,6 @@
     const fmt = new Intl.NumberFormat('tr-TR');
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const userColor = uid => {
-      // stable pastel per user
       const seed = Array.from(uid || 'anon').reduce((a,c)=>a+c.charCodeAt(0),0);
       const hue = seed % 360;
       return `hsl(${hue} 80% 60% / 0.9)`;
@@ -308,7 +298,7 @@
       span.className = 'pill flex items-center gap-2';
       span.textContent = text;
       const x = document.createElement('button');
-      x.className = 'text-white/60 hover:text-white';
+      x.className = 'text-slate-600 hover:text-slate-900';
       x.textContent = '×';
       x.onclick = onRemove;
       span.appendChild(x);
@@ -320,7 +310,6 @@
       return new Promise((resolve) => {
         onAuthStateChanged(auth, async (user) => {
           if (!user) {
-            // Popup Google
             const provider = new GoogleAuthProvider();
             try {
               const res = await signInWithPopup(auth, provider);
@@ -492,7 +481,6 @@
     }
 
     async function snapshotChannels(channels) {
-      // Save today snapshot for growth calculations
       const today = new Date(); today.setHours(0,0,0,0);
       const key = today.toISOString().slice(0,10);
       for (const ch of channels) {
@@ -514,14 +502,13 @@
       title.className = 'font-extrabold text-xl mb-1';
       title.textContent = dm.title;
       const body = document.createElement('div');
-      body.className = 'text-sm text-white/85 whitespace-pre-wrap';
+      body.className = 'text-sm text-slate-800 whitespace-pre-wrap';
       body.textContent = dm.body;
       card.appendChild(title); card.appendChild(body);
       return card;
     }
 
     function digestTextFromStats(statsList) {
-      // statsList: [{title, deltaSubs, deltaViews, growthPctSubs}]
       const fastest = [...statsList].sort((a,b)=>b.growthPctSubs - a.growthPctSubs)[0];
       const lines = [
         `Bu hafta özet: ${statsList.length} kanalda güncelleme.`,
@@ -539,7 +526,6 @@
       const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
       if (!due) return false;
 
-      // Compare with snapshot 7 days ago (or closest earlier we have)
       const d = new Date(); d.setHours(0,0,0,0);
       const todayIso = d.toISOString().slice(0,10);
       const past = new Date(d.getTime()-7*24*3600*1000);
@@ -567,7 +553,7 @@
       for (const it of items.slice(0,2)) {
         const div = document.createElement('div');
         div.className = 'glass rounded-xl p-3';
-        div.innerHTML = `<div class="font-bold">${it.title}</div><div class="text-xs text-white/70">${new Date(it.createdAt).toLocaleString('tr-TR')}</div>`;
+        div.innerHTML = `<div class="font-bold">${it.title}</div><div class="text-xs text-slate-700">${new Date(it.createdAt).toLocaleString('tr-TR')}</div>`;
         dmPreview.appendChild(div);
       }
       dmMiniCount.textContent = String(items.length);
@@ -578,14 +564,24 @@
 
     // ===== Reminders =====
     async function addReminder() {
-      const text = prompt('Hatırlatma metni');
-      if (!text) return;
-      const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)');
-      if (!when) return;
-      const dueAt = new Date(when.replace(' ', 'T')).getTime();
-      await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
-        text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
-      });
+      try {
+        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
+        if (!workspaceId) throw new Error('Workspace seçilmedi.');
+        const text = prompt('Hatırlatma metni'); if (!text) return;
+        const hint = 'Örn: 2025-09-11 18:30';
+        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)
+' + hint);
+        if (!when) return;
+        const parsed = Date.parse(when.replace(' ', 'T'));
+        if (isNaN(parsed)) { alert('Tarih formatı geçersiz. ' + hint); return; }
+        const dueAt = parsed;
+        await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
+          text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
+        });
+      } catch (e) {
+        console.error('addReminder error:', e);
+        alert('Hatırlatma eklenemedi: ' + (e?.message || e));
+      }
     }
 
     function renderReminders(list) {
@@ -598,7 +594,7 @@
         dot.style.background = r.color;
         const meta = document.createElement('div');
         meta.className = 'flex-1';
-        meta.innerHTML = `<div class="font-semibold">${r.text}</div><div class="text-xs text-white/70">${new Date(r.dueAt).toLocaleString('tr-TR')}</div>`;
+        meta.innerHTML = `<div class="font-semibold">${r.text}</div><div class="text-xs text-slate-700">${new Date(r.dueAt).toLocaleString('tr-TR')}</div>`;
         const del = document.createElement('button');
         del.className = 'pill'; del.textContent = 'Sil';
         del.onclick = async () => await deleteDoc(doc(db, 'workspaces', workspaceId, 'reminders', r.id));
@@ -615,7 +611,6 @@
           bannerTitle.textContent = 'Hatırlatma';
           bannerText.textContent = r.text;
           banner.classList.remove('hidden');
-          // Optional browser Notification
           if (Notification?.permission === 'granted') new Notification('Hatırlatma', { body: r.text });
         }
       }
@@ -623,10 +618,17 @@
 
     // ===== Notes =====
     async function addNote() {
-      const text = prompt('Not içeriği'); if (!text) return;
-      await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
-        text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
-      });
+      try {
+        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
+        if (!workspaceId) throw new Error('Workspace seçilmedi.');
+        const text = prompt('Not içeriği'); if (!text) return;
+        await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
+          text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
+        });
+      } catch (e) {
+        console.error('addNote error:', e);
+        alert('Not eklenemedi: ' + (e?.message || e));
+      }
     }
     function renderNotes(list) {
       notesEl.innerHTML = '';
@@ -638,7 +640,7 @@
         tag.style.background = n.color; tag.style.borderColor = 'transparent';
         const meta = document.createElement('div');
         meta.className = 'flex-1';
-        meta.innerHTML = `<div>${n.text}</div><div class="text-xs text-white/60 mt-1">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>`;
+        meta.innerHTML = `<div>${n.text}</div><div class="text-xs text-slate-600 mt-1">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>`;
         const del = document.createElement('button'); del.className = 'pill'; del.textContent = 'Sil';
         del.onclick = async () => await deleteDoc(doc(db, 'workspaces', workspaceId, 'notes', n.id));
         row.append(tag, meta, del); notesEl.appendChild(row);
@@ -647,11 +649,18 @@
 
     // ===== Threads =====
     async function addThread() {
-      const title = prompt('Başlık'); if (!title) return;
-      const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
-      await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
-        title, url, createdBy: currentUser.uid, createdAt: Date.now()
-      });
+      try {
+        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
+        if (!workspaceId) throw new Error('Workspace seçilmedi.');
+        const title = prompt('Başlık'); if (!title) return;
+        const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
+        await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
+          title, url, createdBy: currentUser.uid, createdAt: Date.now()
+        });
+      } catch (e) {
+        console.error('addThread error:', e);
+        alert('Sohbet kaydedilemedi: ' + (e?.message || e));
+      }
     }
     function renderThreads(list) {
       threadsEl.innerHTML = '';
@@ -659,7 +668,7 @@
         const a = document.createElement('a');
         a.href = t.url; a.target = '_blank'; a.rel = 'noopener';
         a.className = 'card rounded-2xl p-3 block hover:scale-[1.01] transition';
-        a.innerHTML = `<div class="font-semibold">${t.title}</div><div class="text-xs text-white/70 truncate">${t.url}</div>`;
+        a.innerHTML = `<div class="font-semibold">${t.title}</div><div class="text-xs text-slate-700 truncate">${t.url}</div>`;
         threadsEl.appendChild(a);
       }
     }
@@ -672,7 +681,7 @@
       for (const s of sorted) {
         const li = document.createElement('li');
         li.className = 'glass rounded-xl p-3 flex items-center justify-between';
-        li.innerHTML = `<div class="flex items-center gap-2"><div class="pill">#${i++}</div><div>${s.title}</div></div><div class="text-sm text-white/80 font-semibold">${s.growthPctSubs.toFixed(2)}%</div>`;
+        li.innerHTML = `<div class="flex items-center gap-2"><div class="pill">#${i++}</div><div>${s.title}</div></div><div class="text-sm text-slate-800 font-semibold">${s.growthPctSubs.toFixed(2)}%</div>`;
         leaderboard.appendChild(li);
       }
     }
@@ -691,10 +700,21 @@
     // ===== Init Flow =====
     applyWorkspaceUi();
     if (!workspaceId) {
-      // Wait for workspace set
+      // kullanıcı Workspace seçene kadar bekle
     } else {
       await ensureAuth();
       await ensureWorkspaceDocs();
+
+      // Basit sağlık/izin kontrolü: bu yazma denemesi Rules veya domain sorunlarını hızlı gösterir
+      try {
+        await setDoc(wsDoc('__health'), { t: Date.now() }, { merge: true });
+      } catch (e) {
+        console.error('Firestore erişim hatası:', e);
+        alert('🔥 Firestore izin hatası: ' + (e?.message || e) + '
+— Authentication (Google) açık mı?
+— Authorized domains: sadiqabbaszade.github.io eklendi mi?
+— Firestore Rules yayımlandı mı?');
+      }
 
       // Live digests list
       onSnapshot(query(collection(db, 'workspaces', workspaceId, 'digests'), orderBy('createdAt','desc')), (qs) => {
@@ -734,7 +754,6 @@
         const chSnap = await getDoc(wsDoc('channels'));
         const ch = chSnap.data() || { mine: [], competitors: [] };
 
-        // Fetch current data
         const [mine, comps] = await Promise.all([
           fetchChannels(ytKey, ch.mine).catch(()=>[]),
           fetchChannels(ytKey, ch.competitors).catch(()=>[]),
@@ -743,10 +762,8 @@
         renderChannelGrid(mineGrid, mine);
         renderChannelGrid(competitorGrid, comps);
 
-        // Save today snapshot for our channels
         await snapshotChannels(mine);
 
-        // Build leaderboard from weekly deltas (ours only)
         const d = new Date(); d.setHours(0,0,0,0);
         const todayIso = d.toISOString().slice(0,10);
         const past = new Date(d.getTime()-7*24*3600*1000);
@@ -762,10 +779,8 @@
         }
         renderLeaderboard(weekly);
 
-        // Maybe create a fresh weekly digest (once per 7d)
         const created = await maybeCreateWeeklyDigest(mine);
         if (created) {
-          // flash banner
           bannerTitle.textContent = 'Yeni Haftalık Rapor';
           bannerText.textContent = 'DM kutusuna yeni bir gazete düştü!';
           banner.classList.remove('hidden'); setTimeout(()=>banner.classList.add('hidden'), 5000);
