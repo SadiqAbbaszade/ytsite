@@ -709,7 +709,12 @@
         await setDoc(wsDoc('__health'), { t: Date.now() }, { merge: true });
       } catch (e) {
         console.error('Firestore erişim hatası:', e);
-        alert('🔥 Firestore izin hatası: ' + (e?.message || e) + '
+        alert(
+  '🔥 Firestore izin hatası: ' + (e?.message || e) +
+  '\\n— Authentication (Google) açık mı?' +
+  '\\n— Authorized domains: sadiqabbaszade.github.io eklendi mi?' +
+  '\\n— Firestore Rules yayımlandı mı?'
+);
 — Authentication (Google) açık mı?
 — Authorized domains: sadiqabbaszade.github.io eklendi mi?
 — Firestore Rules yayımlandı mı?');
