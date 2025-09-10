@@ -569,8 +569,7 @@
         if (!workspaceId) throw new Error('Workspace seçilmedi.');
         const text = prompt('Hatırlatma metni'); if (!text) return;
         const hint = 'Örn: 2025-09-11 18:30';
-        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)
-' + hint);
+        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)' + hint);
         if (!when) return;
         const parsed = Date.parse(when.replace(' ', 'T'));
         if (isNaN(parsed)) { alert('Tarih formatı geçersiz. ' + hint); return; }
