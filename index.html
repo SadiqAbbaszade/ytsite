@@ -1,55 +1,3 @@
-<!--
-YT Ops Hub — Single‑File App (GitHub Pages + Firebase)
-Single-file, free-to-host dashboard for managing YouTube channels, competitors, weekly digests, reminders, notes, and saved AI threads.
-
-✅ 100% static: host on GitHub Pages.
-✅ Multi‑user shared workspace via Firebase Auth + Firestore (Spark free tier).
-✅ YouTube Data API v3 fetches (logo, name, subscribers) for your channels & competitors.
-✅ Weekly "DM" digest auto-generates when 7+ days have passed since last digest (client-side snapshot compare).
-✅ Growth leaderboard (relative % growth) and quick stats.
-✅ Reminder table with on‑page notifications (and optional browser notifications if the tab is open).
-✅ "Important Things" board with per‑user color tags so you and your friend are distinguishable.
-✅ Save links to important ChatGPT/Claude conversations (embeds when possible).
-
-— QUICK SETUP —
-1) Create a Firebase project → enable Authentication (Google provider) + Firestore.
-2) Copy your Firebase web config and paste into window.FB_CONFIG below.
-3) (Optional but recommended) Create a YouTube Data API v3 key and paste it into Settings in the app.
-   • Restrict the key to YouTube Data API v3 and your domain (github.io) when you go public.
-4) Deploy: Put this single file as index.html in a GitHub repo → Settings → Pages → Deploy from main → root.
-5) Share a Workspace ID with your friend (Settings → Workspace). You’ll both see the same data.
-
-— FIRESTORE STRUCTURE (all under workspaces/{workspaceId}) —
-settings: { ytApiKey, latestDigestAt }
-channels: { mine: string[], competitors: string[] }
-stats/{channelId}/snapshots/{ISOdate}: { subs, views, ts }
-reminders/{autoId}: { text, dueAt, createdBy, color }
-notes/{autoId}: { text, createdBy, color, createdAt }
-threads/{autoId}: { title, url, createdBy, createdAt }
-digests/{autoId}: { title, body, createdAt }
-
-— SECURITY RULES (paste in Firebase > Firestore Rules). Adjust to your needs —
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /workspaces/{wid}/{document=**} {
-      allow read, write: if request.auth != null && exists(/databases/$(database)/documents/workspaces/$(wid));
-    }
-    // Optionally, gate workspace creation to signed-in users only
-    match /workspaces/{wid} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null;
-    }
-  }
-}
-
-— NOTES —
-• Browser notifications only fire if the page is open (no server). The app shows in‑app banners for due reminders regardless.
-• Weekly digest is generated client‑side the first time someone opens the app after 7+ days; it compares stored snapshots.
-• This is a clean baseline. You can later add Cloud Functions or CRON if you want true background jobs.
-• Tailwind via CDN and tiny UI kit; animations are subtle to keep it smooth on low-end devices.
--->
-
 <!doctype html>
 <html lang="tr">
 <head>
@@ -65,16 +13,6 @@ service cloud.firestore {
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-          colors: {
-            base: {
-              950: '#0b0f14', 900: '#0e141b', 800: '#101922', 700: '#15202b',
-            },
-            brand: { 500: '#5b8cff', 600: '#3d6cff' },
-            accent: { 500: '#22d3ee' },
-          },
-          boxShadow: {
-            soft: '0 10px 30px -10px rgba(0,0,0,0.4)'
-          }
         }
       }
     }
@@ -97,7 +35,7 @@ service cloud.firestore {
   <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
     <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
       <div class="flex items-center gap-3">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 grid place-items-center shadow-soft">📺</div>
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center shadow">📺</div>
         <div>
           <h1 class="text-lg font-extrabold tracking-tight">YT Ops Hub</h1>
           <p class="text-xs text-slate-600 -mt-1">Kanal yönetimi • Rakip takibi • Haftalık DM • Hatırlatmalar</p>
@@ -114,7 +52,7 @@ service cloud.firestore {
   </header>
 
   <!-- Notification banner -->
-  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow-soft z-50">
+  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow z-50">
     <div class="flex items-start gap-3">
       <div>⏰</div>
       <div class="flex-1">
@@ -269,31 +207,19 @@ service cloud.firestore {
     </a>
   </template>
 
-  <!-- Firebase + App Script -->
+  <!-- Firebase Config -->
   <script>
-window.FB_CONFIG = {
-apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
-authDomain: "yt-sayt.firebaseapp.com",
-projectId: "yt-sayt",
-storageBucket: "yt-sayt.firebasestorage.app",
-messagingSenderId: "614904562607",
-appId: "1:614904562607:web:f352a57fe3f4457077e55a",
-};
-</script>
+    window.FB_CONFIG = {
+      apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
+      authDomain: "yt-sayt.firebaseapp.com",
+      projectId: "yt-sayt",
+      storageBucket: "yt-sayt.firebasestorage.app",
+      messagingSenderId: "614904562607",
+      appId: "1:614904562607:web:f352a57fe3f4457077e55a",
+    };
+  </script>
 
-   <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-
-
-const app = initializeApp(window.FB_CONFIG);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-
-// buradan sonra diğer kodun (kanallar, DM, hatırlatma vs.) aynı kalıyor
-</script>
+  <!-- App Script -->
   <script type="module">
     // ===== Imports (Firebase CDN ESM) =====
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
@@ -362,7 +288,6 @@ const db = getFirestore(app);
     const fmt = new Intl.NumberFormat('tr-TR');
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const userColor = uid => {
-      // stable pastel per user
       const seed = Array.from(uid || 'anon').reduce((a,c)=>a+c.charCodeAt(0),0);
       const hue = seed % 360;
       return `hsl(${hue} 80% 60% / 0.9)`;
@@ -373,7 +298,7 @@ const db = getFirestore(app);
       span.className = 'pill flex items-center gap-2';
       span.textContent = text;
       const x = document.createElement('button');
-      x.className = 'text-slate-600 hover:text-white';
+      x.className = 'text-slate-600 hover:text-slate-900';
       x.textContent = '×';
       x.onclick = onRemove;
       span.appendChild(x);
@@ -385,7 +310,6 @@ const db = getFirestore(app);
       return new Promise((resolve) => {
         onAuthStateChanged(auth, async (user) => {
           if (!user) {
-            // Popup Google
             const provider = new GoogleAuthProvider();
             try {
               const res = await signInWithPopup(auth, provider);
@@ -557,7 +481,6 @@ const db = getFirestore(app);
     }
 
     async function snapshotChannels(channels) {
-      // Save today snapshot for growth calculations
       const today = new Date(); today.setHours(0,0,0,0);
       const key = today.toISOString().slice(0,10);
       for (const ch of channels) {
@@ -586,7 +509,6 @@ const db = getFirestore(app);
     }
 
     function digestTextFromStats(statsList) {
-      // statsList: [{title, deltaSubs, deltaViews, growthPctSubs}]
       const fastest = [...statsList].sort((a,b)=>b.growthPctSubs - a.growthPctSubs)[0];
       const lines = [
         `Bu hafta özet: ${statsList.length} kanalda güncelleme.`,
@@ -604,7 +526,6 @@ const db = getFirestore(app);
       const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
       if (!due) return false;
 
-      // Compare with snapshot 7 days ago (or closest earlier we have)
       const d = new Date(); d.setHours(0,0,0,0);
       const todayIso = d.toISOString().slice(0,10);
       const past = new Date(d.getTime()-7*24*3600*1000);
@@ -643,14 +564,24 @@ const db = getFirestore(app);
 
     // ===== Reminders =====
     async function addReminder() {
-      const text = prompt('Hatırlatma metni');
-      if (!text) return;
-      const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)');
-      if (!when) return;
-      const dueAt = new Date(when.replace(' ', 'T')).getTime();
-      await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
-        text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
-      });
+      try {
+        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
+        if (!workspaceId) throw new Error('Workspace seçilmedi.');
+        const text = prompt('Hatırlatma metni'); if (!text) return;
+        const hint = 'Örn: 2025-09-11 18:30';
+        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)
+' + hint);
+        if (!when) return;
+        const parsed = Date.parse(when.replace(' ', 'T'));
+        if (isNaN(parsed)) { alert('Tarih formatı geçersiz. ' + hint); return; }
+        const dueAt = parsed;
+        await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
+          text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
+        });
+      } catch (e) {
+        console.error('addReminder error:', e);
+        alert('Hatırlatma eklenemedi: ' + (e?.message || e));
+      }
     }
 
     function renderReminders(list) {
@@ -680,7 +611,6 @@ const db = getFirestore(app);
           bannerTitle.textContent = 'Hatırlatma';
           bannerText.textContent = r.text;
           banner.classList.remove('hidden');
-          // Optional browser Notification
           if (Notification?.permission === 'granted') new Notification('Hatırlatma', { body: r.text });
         }
       }
@@ -688,10 +618,17 @@ const db = getFirestore(app);
 
     // ===== Notes =====
     async function addNote() {
-      const text = prompt('Not içeriği'); if (!text) return;
-      await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
-        text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
-      });
+      try {
+        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
+        if (!workspaceId) throw new Error('Workspace seçilmedi.');
+        const text = prompt('Not içeriği'); if (!text) return;
+        await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
+          text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
+        });
+      } catch (e) {
+        console.error('addNote error:', e);
+        alert('Not eklenemedi: ' + (e?.message || e));
+      }
     }
     function renderNotes(list) {
       notesEl.innerHTML = '';
@@ -712,11 +649,18 @@ const db = getFirestore(app);
 
     // ===== Threads =====
     async function addThread() {
-      const title = prompt('Başlık'); if (!title) return;
-      const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
-      await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
-        title, url, createdBy: currentUser.uid, createdAt: Date.now()
-      });
+      try {
+        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
+        if (!workspaceId) throw new Error('Workspace seçilmedi.');
+        const title = prompt('Başlık'); if (!title) return;
+        const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
+        await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
+          title, url, createdBy: currentUser.uid, createdAt: Date.now()
+        });
+      } catch (e) {
+        console.error('addThread error:', e);
+        alert('Sohbet kaydedilemedi: ' + (e?.message || e));
+      }
     }
     function renderThreads(list) {
       threadsEl.innerHTML = '';
@@ -756,10 +700,21 @@ const db = getFirestore(app);
     // ===== Init Flow =====
     applyWorkspaceUi();
     if (!workspaceId) {
-      // Wait for workspace set
+      // kullanıcı Workspace seçene kadar bekle
     } else {
       await ensureAuth();
       await ensureWorkspaceDocs();
+
+      // Basit sağlık/izin kontrolü: bu yazma denemesi Rules veya domain sorunlarını hızlı gösterir
+      try {
+        await setDoc(wsDoc('__health'), { t: Date.now() }, { merge: true });
+      } catch (e) {
+        console.error('Firestore erişim hatası:', e);
+        alert('🔥 Firestore izin hatası: ' + (e?.message || e) + '
+— Authentication (Google) açık mı?
+— Authorized domains: sadiqabbaszade.github.io eklendi mi?
+— Firestore Rules yayımlandı mı?');
+      }
 
       // Live digests list
       onSnapshot(query(collection(db, 'workspaces', workspaceId, 'digests'), orderBy('createdAt','desc')), (qs) => {
@@ -799,7 +754,6 @@ const db = getFirestore(app);
         const chSnap = await getDoc(wsDoc('channels'));
         const ch = chSnap.data() || { mine: [], competitors: [] };
 
-        // Fetch current data
         const [mine, comps] = await Promise.all([
           fetchChannels(ytKey, ch.mine).catch(()=>[]),
           fetchChannels(ytKey, ch.competitors).catch(()=>[]),
@@ -808,10 +762,8 @@ const db = getFirestore(app);
         renderChannelGrid(mineGrid, mine);
         renderChannelGrid(competitorGrid, comps);
 
-        // Save today snapshot for our channels
         await snapshotChannels(mine);
 
-        // Build leaderboard from weekly deltas (ours only)
         const d = new Date(); d.setHours(0,0,0,0);
         const todayIso = d.toISOString().slice(0,10);
         const past = new Date(d.getTime()-7*24*3600*1000);
@@ -827,10 +779,8 @@ const db = getFirestore(app);
         }
         renderLeaderboard(weekly);
 
-        // Maybe create a fresh weekly digest (once per 7d)
         const created = await maybeCreateWeeklyDigest(mine);
         if (created) {
-          // flash banner
           bannerTitle.textContent = 'Yeni Haftalık Rapor';
           bannerText.textContent = 'DM kutusuna yeni bir gazete düştü!';
           banner.classList.remove('hidden'); setTimeout(()=>banner.classList.add('hidden'), 5000);
