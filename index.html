@@ -271,14 +271,29 @@ service cloud.firestore {
 
   <!-- Firebase + App Script -->
   <script>
-    // 1) Fill this with your Firebase project config
-    window.FB_CONFIG = {
-      apiKey: "", // paste from Firebase console
-      authDomain: "",
-      projectId: "",
-      appId: "",
-    };
-  </script>
+window.FB_CONFIG = {
+apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
+authDomain: "yt-sayt.firebaseapp.com",
+projectId: "yt-sayt",
+storageBucket: "yt-sayt.firebasestorage.app",
+messagingSenderId: "614904562607",
+appId: "1:614904562607:web:f352a57fe3f4457077e55a",
+};
+</script>
+
+   <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+
+const app = initializeApp(window.FB_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+
+// buradan sonra diğer kodun (kanallar, DM, hatırlatma vs.) aynı kalıyor
+</script>
   <script type="module">
     // ===== Imports (Firebase CDN ESM) =====
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
