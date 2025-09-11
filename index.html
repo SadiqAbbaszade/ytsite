@@ -426,7 +426,7 @@ service cloud.firestore {
     };
 
     // ===== Firestore helpers =====
-    const wsDoc = (...path) => doc(db, 'workspaces', workspaceId, ...path);
+    const wsDoc = (name) => doc(db, "workspaces", workspaceId, name);
     const wsRoot = () => doc(db, 'workspaces', workspaceId);
 
     async function ensureWorkspaceDocs() {
