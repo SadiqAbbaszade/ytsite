@@ -412,7 +412,7 @@
     }
 
     el('saveApiKey').onclick = async () => {
-      await updateDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'), { ytApiKey: settingsApiKey.value.trim() });
+      await updateDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'), { ytApiKey: settingsApiKey.value.trim() };
       alert('API key kaydedildi.');
     };
 
