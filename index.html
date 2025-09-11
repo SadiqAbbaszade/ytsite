@@ -426,7 +426,8 @@ service cloud.firestore {
     };
 
     // ===== Firestore helpers =====
-    const wsDoc = (name) => doc(db, "workspaces", workspaceId, name);
+    const wsChannelsDoc = () => doc(db, "workspaces", workspaceId, "channelsDoc");
+    const wsSettingsDoc = () => doc(db, "workspaces", workspaceId, "settingsDoc");
     const wsRoot = () => doc(db, 'workspaces', workspaceId);
 
     async function ensureWorkspaceDocs() {
@@ -435,11 +436,11 @@ service cloud.firestore {
       if (!rootSnap.exists()) {
         await setDoc(rootRef, { createdAt: Date.now() });
       }
-      const channelsRef = wsDoc('channels');
+      const channelsRef = wsChannelsDoc();
       if (!(await getDoc(channelsRef)).exists()) {
         await setDoc(channelsRef, { mine: [], competitors: [] });
       }
-      const settingsRef = wsDoc('settings');
+      const settingsRef = wsSettingsDoc();
       if (!(await getDoc(settingsRef)).exists()) {
         await setDoc(settingsRef, { ytApiKey: '', latestDigestAt: 0 });
       }
@@ -447,20 +448,20 @@ service cloud.firestore {
 
     async function loadSettingsPanel() {
       if (!workspaceId) return;
-      const st = await getDoc(wsDoc('settings'));
+      const st = await getDoc(wsSettingsDoc());
       const data = st.data() || {};
       settingsApiKey.value = data.ytApiKey || '';
 
-      const ch = await getDoc(wsDoc('channels'));
+      const ch = await getDoc(wsChannelsDoc());
       const chData = ch.data() || { mine: [], competitors: [] };
       renderChipList(mineList, chData.mine, async (id) => {
         const arr = chData.mine.filter(x => x !== id);
-        await updateDoc(wsDoc('channels'), { mine: arr });
+        await updateDoc(wsChannelsDoc(), { mine: arr });
         loadSettingsPanel();
       });
       renderChipList(compList, chData.competitors, async (id) => {
         const arr = chData.competitors.filter(x => x !== id);
-        await updateDoc(wsDoc('channels'), { competitors: arr });
+        await updateDoc(wsChannelsDoc(), { competitors: arr });
         loadSettingsPanel();
       });
     }
@@ -471,7 +472,7 @@ service cloud.firestore {
     }
 
     el('saveApiKey').onclick = async () => {
-      await updateDoc(wsDoc('settings'), { ytApiKey: settingsApiKey.value.trim() });
+      await updateDoc(wsSettingsDoc(), { ytApiKey: settingsApiKey.value.trim() });
       alert('API key kaydedildi.');
     };
 
@@ -601,7 +602,7 @@ compAdd.onclick = async () => {
     }
 
     async function maybeCreateWeeklyDigest(mychannels) {
-      const stSnap = await getDoc(wsDoc('settings'));
+      const stSnap = await getDoc(wsSettingsDoc());
       const st = stSnap.data() || { latestDigestAt: 0 };
       const weekMs = 7*24*3600*1000;
       const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
@@ -626,7 +627,7 @@ compAdd.onclick = async () => {
       const body = digestTextFromStats(statsList);
       const dm = { title: `Haftalık Rapor — ${new Date().toLocaleDateString('tr-TR')}`, body, createdAt: Date.now() };
       await addDoc(collection(db, 'workspaces', workspaceId, 'digests'), dm);
-      await updateDoc(wsDoc('settings'), { latestDigestAt: Date.now() });
+      await updateDoc(wsSettingsDoc(), { latestDigestAt: Date.now() });
       return true;
     }
 
@@ -796,10 +797,10 @@ compAdd.onclick = async () => {
       addThreadBtn.onclick = addThread;
 
       // Channels + Leaderboard
-      onSnapshot(wsDoc('settings'), async (stSnap) => {
+      onSnapshot(wsSettingsDoc(), async (stSnap) => {
         const st = stSnap.data() || {};
         const ytKey = st.ytApiKey || '';
-        const chSnap = await getDoc(wsDoc('channels'));
+        const chSnap = await getDoc(wsChannelsDoc());
         const ch = chSnap.data() || { mine: [], competitors: [] };
 
         // Fetch current data
