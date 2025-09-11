@@ -524,7 +524,7 @@
     }
 
     async function maybeCreateWeeklyDigest(mychannels) {
-      const stSnap = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'));
+      const stSnap = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config');
       const st = stSnap.data() || { latestDigestAt: 0 };
       const weekMs = 7*24*3600*1000;
       const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
