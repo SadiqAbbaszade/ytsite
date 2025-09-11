@@ -478,9 +478,17 @@
             const card = container.querySelector(`.card[data-id="${id}"]`);
             const subs = map.get(id);
             if (card && isFinite(subs)) {
-              const span = card.querySelector('.subs span');
-              if (span) span.textContent = formatSubs(subs);
-            }
+  const span = card.querySelector('.subs span');
+  if (span) span.textContent = formatSubs(subs);
+
+  // 🔥 Firestore’a güncel abone sayısını yaz
+  const cat = card.dataset.cat; // 'mine' veya 'comp'
+  const colRef = (cat === 'mine') ? colMine : colComp;
+  setDoc(doc(colRef, id), {
+    subscribersCache: subs,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
           });
         } catch (err) {
           console.warn('Canlı istatistik çekilemedi:', err);
@@ -490,19 +498,35 @@
     }
 
     // Snapshot dinlemeleri — burada canlı info çek, snapshot yaz, haftalık delta hesapla ve kartı bas
-    onSnapshot(colMine, async (snap) => {
-      mineGrid.innerHTML = '';
-      const tasks = snap.docs.map(async (docu) => {
-        const d = docu.data();
-        // Canlı bilgi çek
-        const info = await fetchChannelInfo(d.channelId);
-        // Günlük snapshot kaydet
-        await saveSnapshot(info.channelId, info.subscribers, info.views, 'myChannels');
-        // Haftalık delta al
-        const stats = await getWeeklyStats(info.channelId, 'myChannels');
-        // Kartı yaz
-        mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'mine', stats));
-      });
+    import { query, orderBy } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+// Koleksiyon sorguları
+const qMine = query(colMine, orderBy("createdAt", "asc"));
+const qComp = query(colComp, orderBy("createdAt", "asc"));
+
+// Snapshot dinlemeleri
+onSnapshot(qMine, async (snap) => {
+  mineGrid.innerHTML = '';
+  snap.forEach(docu => {
+    const d = docu.data();
+    const html = channelCardHTML({ ...d, subscribersLive: null }, 'mine');
+    mineGrid.insertAdjacentHTML('beforeend', html);
+  });
+  bindCardEvents(mineGrid, colMine);
+  refreshLiveStats(mineGrid);
+});
+
+onSnapshot(qComp, async (snap) => {
+  compGrid.innerHTML = '';
+  snap.forEach(docu => {
+    const d = docu.data();
+    const html = channelCardHTML({ ...d, subscribersLive: null }, 'comp');
+    compGrid.insertAdjacentHTML('beforeend', html);
+  });
+  bindCardEvents(compGrid, colComp);
+  refreshLiveStats(compGrid);
+});
+
       await Promise.allSettled(tasks);
       bindCardEvents(mineGrid, colMine);
       // refreshLiveStats(mineGrid); // istersen açık bırak
