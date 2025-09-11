@@ -376,11 +376,11 @@
       if (!rootSnap.exists()) {
         await setDoc(rootRef, { createdAt: Date.now() });
       }
-      const channelsRef = wsDoc('channels');
+      const channelsRef = doc(db, 'workspaces', workspaceId, 'channels', 'data');
       if (!(await getDoc(channelsRef)).exists()) {
         await setDoc(channelsRef, { mine: [], competitors: [] });
       }
-      const settingsRef = wsDoc('settings');
+      const settingsRef = doc(db, 'workspaces', workspaceId, 'settings', 'config');
       if (!(await getDoc(settingsRef)).exists()) {
         await setDoc(settingsRef, { ytApiKey: '', latestDigestAt: 0 });
       }
@@ -388,20 +388,20 @@
 
     async function loadSettingsPanel() {
       if (!workspaceId) return;
-      const st = await getDoc(wsDoc('settings'));
+      const st = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'));
       const data = st.data() || {};
       settingsApiKey.value = data.ytApiKey || '';
 
-      const ch = await getDoc(wsDoc('channels'));
+      const ch = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
       const chData = ch.data() || { mine: [], competitors: [] };
       renderChipList(mineList, chData.mine, async (id) => {
         const arr = chData.mine.filter(x => x !== id);
-        await updateDoc(wsDoc('channels'), { mine: arr });
+        await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), { mine: arr });
         loadSettingsPanel();
       });
       renderChipList(compList, chData.competitors, async (id) => {
         const arr = chData.competitors.filter(x => x !== id);
-        await updateDoc(wsDoc('channels'), { competitors: arr });
+        await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), { competitors: arr });
         loadSettingsPanel();
       });
     }
@@ -412,27 +412,27 @@
     }
 
     el('saveApiKey').onclick = async () => {
-      await updateDoc(wsDoc('settings'), { ytApiKey: settingsApiKey.value.trim() });
+      await updateDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'), { ytApiKey: settingsApiKey.value.trim() });
       alert('API key kaydedildi.');
     };
 
     mineAdd.onclick = async () => {
       const id = mineNew.value.trim();
       if (!id) return;
-      const snap = await getDoc(wsDoc('channels'));
+      const snap = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
       const data = snap.data();
       if (!data.mine.includes(id)) data.mine.push(id);
-      await updateDoc(wsDoc('channels'), data);
+      await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), data);
       mineNew.value = '';
       loadSettingsPanel();
     };
     compAdd.onclick = async () => {
       const id = compNew.value.trim();
       if (!id) return;
-      const snap = await getDoc(wsDoc('channels'));
+      const snap = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
       const data = snap.data();
       if (!data.competitors.includes(id)) data.competitors.push(id);
-      await updateDoc(wsDoc('channels'), data);
+      await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), data);
       compNew.value = '';
       loadSettingsPanel();
     };
@@ -524,7 +524,7 @@
     }
 
     async function maybeCreateWeeklyDigest(mychannels) {
-      const stSnap = await getDoc(wsDoc('settings'));
+      const stSnap = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'));
       const st = stSnap.data() || { latestDigestAt: 0 };
       const weekMs = 7*24*3600*1000;
       const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
@@ -548,7 +548,7 @@
       const body = digestTextFromStats(statsList);
       const dm = { title: `Haftalık Rapor — ${new Date().toLocaleDateString('tr-TR')}`, body, createdAt: Date.now() };
       await addDoc(collection(db, 'workspaces', workspaceId, 'digests'), dm);
-      await updateDoc(wsDoc('settings'), { latestDigestAt: Date.now() });
+      await updateDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'), { latestDigestAt: Date.now() });
       return true;
     }
 
@@ -704,10 +704,10 @@
 
     // Helper: generate digest now (for test button)
     async function generateDigestNow() {
-      const stSnap = await getDoc(wsDoc('settings'));
+      const stSnap = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'));
       const st = stSnap.data() || {};
       const ytKey = st.ytApiKey || '';
-      const chSnap = await getDoc(wsDoc('channels'));
+      const chSnap = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
       const ch = chSnap.data() || { mine: [], competitors: [] };
       const mine = await fetchChannels(ytKey, ch.mine).catch(()=>[]);
       await snapshotChannels(mine);
