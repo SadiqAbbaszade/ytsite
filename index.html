@@ -388,7 +388,7 @@
 
     async function loadSettingsPanel() {
       if (!workspaceId) return;
-      const st = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'));
+      const st = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config');
       const data = st.data() || {};
       settingsApiKey.value = data.ytApiKey || '';
 
