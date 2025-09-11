@@ -475,7 +475,7 @@ service cloud.firestore {
       alert('API key kaydedildi.');
     };
 
-    mineAdd.onclick = async () => {
+   mineAdd.onclick = async () => {
   const raw = mineNew.value.trim();
   if (!raw) return;
 
@@ -510,6 +510,7 @@ compAdd.onclick = async () => {
   compNew.value = "";
   loadSettingsPanel();
 };
+
 
     manageMine.onclick = () => settingsModal.showModal();
     manageCompetitors.onclick = () => settingsModal.showModal();
@@ -846,7 +847,6 @@ async function resolveChannelId(input, ytKey) {
   // Eğer doğrudan UC... ID verilmişse
   if (input.startsWith("UC")) return input;
 
-  // Eğer link verilmişse
   try {
     const url = new URL(input);
 
@@ -855,15 +855,15 @@ async function resolveChannelId(input, ytKey) {
       return url.pathname.split("/channel/")[1];
     }
 
-    // /@username veya /c/CustomName → search.list API
+    // /@username veya /c/CustomName → search.list API ile çöz
     let queryName = "";
     if (url.pathname.startsWith("/@")) {
-      queryName = url.pathname.substring(2); // @ işaretini at
+      queryName = url.pathname.substring(1); // @ dahil, YouTube handle için @ lazım
     } else if (url.pathname.startsWith("/c/")) {
       queryName = url.pathname.split("/c/")[1];
     }
 
-    if (queryName) {
+    if (queryName && ytKey) {
       const apiUrl = new URL("https://www.googleapis.com/youtube/v3/search");
       apiUrl.searchParams.set("part", "snippet");
       apiUrl.searchParams.set("q", queryName);
@@ -872,8 +872,9 @@ async function resolveChannelId(input, ytKey) {
 
       const res = await fetch(apiUrl);
       const data = await res.json();
+
       if (data.items?.length) {
-        return data.items[0].id.channelId || data.items[0].snippet.channelId;
+        return data.items[0].id.channelId; // doğru alan burası
       }
     }
   } catch (e) {
