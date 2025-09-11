@@ -1,3 +1,55 @@
+<!--
+YT Ops Hub — Single‑File App (GitHub Pages + Firebase)
+Single-file, free-to-host dashboard for managing YouTube channels, competitors, weekly digests, reminders, notes, and saved AI threads.
+
+✅ 100% static: host on GitHub Pages.
+✅ Multi‑user shared workspace via Firebase Auth + Firestore (Spark free tier).
+✅ YouTube Data API v3 fetches (logo, name, subscribers) for your channels & competitors.
+✅ Weekly "DM" digest auto-generates when 7+ days have passed since last digest (client-side snapshot compare).
+✅ Growth leaderboard (relative % growth) and quick stats.
+✅ Reminder table with on‑page notifications (and optional browser notifications if the tab is open).
+✅ "Important Things" board with per‑user color tags so you and your friend are distinguishable.
+✅ Save links to important ChatGPT/Claude conversations (embeds when possible).
+
+— QUICK SETUP —
+1) Create a Firebase project → enable Authentication (Google provider) + Firestore.
+2) Copy your Firebase web config and paste into window.FB_CONFIG below.
+3) (Optional but recommended) Create a YouTube Data API v3 key and paste it into Settings in the app.
+   • Restrict the key to YouTube Data API v3 and your domain (github.io) when you go public.
+4) Deploy: Put this single file as index.html in a GitHub repo → Settings → Pages → Deploy from main → root.
+5) Share a Workspace ID with your friend (Settings → Workspace). You’ll both see the same data.
+
+— FIRESTORE STRUCTURE (all under workspaces/{workspaceId}) —
+settings: { ytApiKey, latestDigestAt }
+channels: { mine: string[], competitors: string[] }
+stats/{channelId}/snapshots/{ISOdate}: { subs, views, ts }
+reminders/{autoId}: { text, dueAt, createdBy, color }
+notes/{autoId}: { text, createdBy, color, createdAt }
+threads/{autoId}: { title, url, createdBy, createdAt }
+digests/{autoId}: { title, body, createdAt }
+
+— SECURITY RULES (paste in Firebase > Firestore Rules). Adjust to your needs —
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /workspaces/{wid}/{document=**} {
+      allow read, write: if request.auth != null && exists(/databases/$(database)/documents/workspaces/$(wid));
+    }
+    // Optionally, gate workspace creation to signed-in users only
+    match /workspaces/{wid} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}
+
+— NOTES —
+• Browser notifications only fire if the page is open (no server). The app shows in‑app banners for due reminders regardless.
+• Weekly digest is generated client‑side the first time someone opens the app after 7+ days; it compares stored snapshots.
+• This is a clean baseline. You can later add Cloud Functions or CRON if you want true background jobs.
+• Tailwind via CDN and tiny UI kit; animations are subtle to keep it smooth on low-end devices.
+-->
+
 <!doctype html>
 <html lang="tr">
 <head>
@@ -13,6 +65,16 @@
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            base: {
+              950: '#0b0f14', 900: '#0e141b', 800: '#101922', 700: '#15202b',
+            },
+            brand: { 500: '#5b8cff', 600: '#3d6cff' },
+            accent: { 500: '#22d3ee' },
+          },
+          boxShadow: {
+            soft: '0 10px 30px -10px rgba(0,0,0,0.4)'
+          }
         }
       }
     }
@@ -35,7 +97,7 @@
   <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
     <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
       <div class="flex items-center gap-3">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 grid place-items-center shadow">📺</div>
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 grid place-items-center shadow-soft">📺</div>
         <div>
           <h1 class="text-lg font-extrabold tracking-tight">YT Ops Hub</h1>
           <p class="text-xs text-slate-600 -mt-1">Kanal yönetimi • Rakip takibi • Haftalık DM • Hatırlatmalar</p>
@@ -52,14 +114,14 @@
   </header>
 
   <!-- Notification banner -->
-  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow z-50">
+  <div id="banner" class="hidden fixed top-14 inset-x-0 mx-auto max-w-2xl card rounded-2xl p-4 shadow-soft z-50">
     <div class="flex items-start gap-3">
       <div>⏰</div>
       <div class="flex-1">
         <div class="font-bold" id="bannerTitle">Hatırlatma</div>
         <div class="text-sm text-slate-800" id="bannerText"></div>
       </div>
-      <button id="bannerClose" class="pill">Kapat</button>
+      <button class="pill" onclick="document.getElementById('banner').classList.add('hidden')">Kapat</button>
     </div>
   </div>
 
@@ -140,7 +202,7 @@
   <dialog id="settingsModal" class="glass rounded-2xl max-w-2xl w-[92%] p-0">
     <div class="p-5 border-b border-slate-200 flex items-center justify-between">
       <h3 class="text-lg font-bold">Ayarlar</h3>
-      <button id="settingsClose" class="pill">Kapat</button>
+      <button class="pill" onclick="settingsModal.close()">Kapat</button>
     </div>
     <div class="p-5 space-y-4">
       <div class="grid sm:grid-cols-2 gap-4">
@@ -190,7 +252,7 @@
   <dialog id="dmModal" class="glass rounded-2xl max-w-3xl w-[92%] p-0">
     <div class="p-5 border-b border-slate-200 flex items-center justify-between">
       <h3 class="text-lg font-bold">DM Kutusu (Haftalık Gazete)</h3>
-      <button id="dmClose" class="pill">Kapat</button>
+      <button class="pill" onclick="dmModal.close()">Kapat</button>
     </div>
     <div id="dmContainer" class="p-5 space-y-3 max-h-[70vh] overflow-y-auto"></div>
   </dialog>
@@ -207,19 +269,18 @@
     </a>
   </template>
 
-  <!-- Firebase Config -->
+  <!-- Firebase + App Script -->
   <script>
+    // 1) Fill this with your Firebase project config
     window.FB_CONFIG = {
-      apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
-      authDomain: "yt-sayt.firebaseapp.com",
-      projectId: "yt-sayt",
-      storageBucket: "yt-sayt.appspot.com",
-      messagingSenderId: "614904562607",
-      appId: "1:614904562607:web:f352a57fe3f4457077e55a"
+  apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
+  authDomain: "yt-sayt.firebaseapp.com",
+  projectId: "yt-sayt",
+  storageBucket: "yt-sayt.appspot.com",
+  messagingSenderId: "614904562607",
+  appId: "1:614904562607:web:f352a57fe3f4457077e55a",
     };
   </script>
-
-  <!-- App Script -->
   <script type="module">
     // ===== Imports (Firebase CDN ESM) =====
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
@@ -245,7 +306,6 @@
     const settingsButton = el('settingsButton');
     const settingsWorkspace = el('settingsWorkspace');
     const settingsApiKey = el('settingsApiKey');
-    const settingsClose = el('settingsClose');
 
     const mineGrid = el('mineGrid');
     const competitorGrid = el('competitorGrid');
@@ -256,13 +316,11 @@
     const dmModal = el('dmModal');
     const dmContainer = el('dmContainer');
     const dmCount = el('dmCount');
-    const dmClose = el('dmClose');
     const openDmFromSidebar = el('openDmFromSidebar');
 
     const banner = el('banner');
     const bannerTitle = el('bannerTitle');
     const bannerText = el('bannerText');
-    const bannerClose = el('bannerClose');
     const notifyButton = el('notifyButton');
 
     const addReminderBtn = el('addReminder');
@@ -291,6 +349,7 @@
     const fmt = new Intl.NumberFormat('tr-TR');
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const userColor = uid => {
+      // stable pastel per user
       const seed = Array.from(uid || 'anon').reduce((a,c)=>a+c.charCodeAt(0),0);
       const hue = seed % 360;
       return `hsl(${hue} 80% 60% / 0.9)`;
@@ -301,7 +360,7 @@
       span.className = 'pill flex items-center gap-2';
       span.textContent = text;
       const x = document.createElement('button');
-      x.className = 'text-slate-600 hover:text-slate-900';
+      x.className = 'text-slate-600 hover:text-white';
       x.textContent = '×';
       x.onclick = onRemove;
       span.appendChild(x);
@@ -313,6 +372,7 @@
       return new Promise((resolve) => {
         onAuthStateChanged(auth, async (user) => {
           if (!user) {
+            // Popup Google
             const provider = new GoogleAuthProvider();
             try {
               const res = await signInWithPopup(auth, provider);
@@ -364,7 +424,6 @@
       settingsModal.close();
       location.reload();
     };
-    settingsClose.onclick = () => settingsModal.close();
 
     // ===== Firestore helpers =====
     const wsDoc = (...path) => doc(db, 'workspaces', workspaceId, ...path);
@@ -376,11 +435,11 @@
       if (!rootSnap.exists()) {
         await setDoc(rootRef, { createdAt: Date.now() });
       }
-      const channelsRef = doc(db, 'workspaces', workspaceId, 'channels', 'data');
+      const channelsRef = wsDoc('channels');
       if (!(await getDoc(channelsRef)).exists()) {
         await setDoc(channelsRef, { mine: [], competitors: [] });
       }
-      const settingsRef = doc(db, 'workspaces', workspaceId, 'settings', 'config');
+      const settingsRef = wsDoc('settings');
       if (!(await getDoc(settingsRef)).exists()) {
         await setDoc(settingsRef, { ytApiKey: '', latestDigestAt: 0 });
       }
@@ -388,20 +447,20 @@
 
     async function loadSettingsPanel() {
       if (!workspaceId) return;
-      const st = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config');
+      const st = await getDoc(wsDoc('settings'));
       const data = st.data() || {};
       settingsApiKey.value = data.ytApiKey || '';
 
-      const ch = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
+      const ch = await getDoc(wsDoc('channels'));
       const chData = ch.data() || { mine: [], competitors: [] };
       renderChipList(mineList, chData.mine, async (id) => {
         const arr = chData.mine.filter(x => x !== id);
-        await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), { mine: arr });
+        await updateDoc(wsDoc('channels'), { mine: arr });
         loadSettingsPanel();
       });
       renderChipList(compList, chData.competitors, async (id) => {
         const arr = chData.competitors.filter(x => x !== id);
-        await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), { competitors: arr });
+        await updateDoc(wsDoc('channels'), { competitors: arr });
         loadSettingsPanel();
       });
     }
@@ -412,27 +471,27 @@
     }
 
     el('saveApiKey').onclick = async () => {
-      await updateDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'), { ytApiKey: settingsApiKey.value.trim() };
+      await updateDoc(wsDoc('settings'), { ytApiKey: settingsApiKey.value.trim() });
       alert('API key kaydedildi.');
     };
 
     mineAdd.onclick = async () => {
       const id = mineNew.value.trim();
       if (!id) return;
-      const snap = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
+      const snap = await getDoc(wsDoc('channels'));
       const data = snap.data();
       if (!data.mine.includes(id)) data.mine.push(id);
-      await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), data);
+      await updateDoc(wsDoc('channels'), data);
       mineNew.value = '';
       loadSettingsPanel();
     };
     compAdd.onclick = async () => {
       const id = compNew.value.trim();
       if (!id) return;
-      const snap = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
+      const snap = await getDoc(wsDoc('channels'));
       const data = snap.data();
       if (!data.competitors.includes(id)) data.competitors.push(id);
-      await updateDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'), data);
+      await updateDoc(wsDoc('channels'), data);
       compNew.value = '';
       loadSettingsPanel();
     };
@@ -485,6 +544,7 @@
     }
 
     async function snapshotChannels(channels) {
+      // Save today snapshot for growth calculations
       const today = new Date(); today.setHours(0,0,0,0);
       const key = today.toISOString().slice(0,10);
       for (const ch of channels) {
@@ -513,6 +573,7 @@
     }
 
     function digestTextFromStats(statsList) {
+      // statsList: [{title, deltaSubs, deltaViews, growthPctSubs}]
       const fastest = [...statsList].sort((a,b)=>b.growthPctSubs - a.growthPctSubs)[0];
       const lines = [
         `Bu hafta özet: ${statsList.length} kanalda güncelleme.`,
@@ -524,12 +585,13 @@
     }
 
     async function maybeCreateWeeklyDigest(mychannels) {
-      const stSnap = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config');
+      const stSnap = await getDoc(wsDoc('settings'));
       const st = stSnap.data() || { latestDigestAt: 0 };
       const weekMs = 7*24*3600*1000;
       const due = Date.now() - (st.latestDigestAt||0) >= weekMs;
       if (!due) return false;
 
+      // Compare with snapshot 7 days ago (or closest earlier we have)
       const d = new Date(); d.setHours(0,0,0,0);
       const todayIso = d.toISOString().slice(0,10);
       const past = new Date(d.getTime()-7*24*3600*1000);
@@ -548,7 +610,7 @@
       const body = digestTextFromStats(statsList);
       const dm = { title: `Haftalık Rapor — ${new Date().toLocaleDateString('tr-TR')}`, body, createdAt: Date.now() };
       await addDoc(collection(db, 'workspaces', workspaceId, 'digests'), dm);
-      await updateDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'), { latestDigestAt: Date.now() });
+      await updateDoc(wsDoc('settings'), { latestDigestAt: Date.now() });
       return true;
     }
 
@@ -568,23 +630,14 @@
 
     // ===== Reminders =====
     async function addReminder() {
-      try {
-        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
-        if (!workspaceId) throw new Error('Workspace seçilmedi.');
-        const text = prompt('Hatırlatma metni'); if (!text) return;
-        const hint = 'Örn: 2025-09-11 18:30';
-        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)\n' + hint);
-        if (!when) return;
-        const parsed = Date.parse(when.replace(' ', 'T'));
-        if (isNaN(parsed)) { alert('Tarih formatı geçersiz. ' + hint); return; }
-        const dueAt = parsed;
-        await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
-          text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
-        });
-      } catch (e) {
-        console.error('addReminder error:', e);
-        alert('Hatırlatma eklenemedi: ' + (e?.message || e));
-      }
+      const text = prompt('Hatırlatma metni');
+      if (!text) return;
+      const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)');
+      if (!when) return;
+      const dueAt = new Date(when.replace(' ', 'T')).getTime();
+      await addDoc(collection(db, 'workspaces', workspaceId, 'reminders'), {
+        text, dueAt, createdBy: currentUser.uid, color: userColor(currentUser.uid)
+      });
     }
 
     function renderReminders(list) {
@@ -614,6 +667,7 @@
           bannerTitle.textContent = 'Hatırlatma';
           bannerText.textContent = r.text;
           banner.classList.remove('hidden');
+          // Optional browser Notification
           if (Notification?.permission === 'granted') new Notification('Hatırlatma', { body: r.text });
         }
       }
@@ -621,17 +675,10 @@
 
     // ===== Notes =====
     async function addNote() {
-      try {
-        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
-        if (!workspaceId) throw new Error('Workspace seçilmedi.');
-        const text = prompt('Not içeriği'); if (!text) return;
-        await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
-          text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
-        });
-      } catch (e) {
-        console.error('addNote error:', e);
-        alert('Not eklenemedi: ' + (e?.message || e));
-      }
+      const text = prompt('Not içeriği'); if (!text) return;
+      await addDoc(collection(db, 'workspaces', workspaceId, 'notes'), {
+        text, createdBy: currentUser.uid, color: userColor(currentUser.uid), createdAt: Date.now()
+      });
     }
     function renderNotes(list) {
       notesEl.innerHTML = '';
@@ -652,18 +699,11 @@
 
     // ===== Threads =====
     async function addThread() {
-      try {
-        if (!currentUser) throw new Error('Giriş yapılmadı (Google).');
-        if (!workspaceId) throw new Error('Workspace seçilmedi.');
-        const title = prompt('Başlık'); if (!title) return;
-        const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
-        await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
-          title, url, createdBy: currentUser.uid, createdAt: Date.now()
-        });
-      } catch (e) {
-        console.error('addThread error:', e);
-        alert('Sohbet kaydedilemedi: ' + (e?.message || e));
-      }
+      const title = prompt('Başlık'); if (!title) return;
+      const url = prompt('URL (ChatGPT/Claude)'); if (!url) return;
+      await addDoc(collection(db, 'workspaces', workspaceId, 'threads'), {
+        title, url, createdBy: currentUser.uid, createdAt: Date.now()
+      });
     }
     function renderThreads(list) {
       threadsEl.innerHTML = '';
@@ -692,8 +732,6 @@
     // ===== DM UI =====
     dmButton.onclick = () => dmModal.showModal();
     openDmFromSidebar.onclick = () => dmModal.showModal();
-    dmClose.onclick = () => dmModal.close();
-    bannerClose.onclick = () => banner.classList.add('hidden');
 
     // Request Notifications
     notifyButton.onclick = async () => {
@@ -702,39 +740,13 @@
       alert(perm === 'granted' ? 'Bildirimler aktif.' : 'Bildirim verilmedi.');
     };
 
-    // Helper: generate digest now (for test button)
-    async function generateDigestNow() {
-      const stSnap = await getDocdoc(db, 'workspaces', workspaceId, 'settings', 'config'));
-      const st = stSnap.data() || {};
-      const ytKey = st.ytApiKey || '';
-      const chSnap = await getDoc(doc(db, 'workspaces', workspaceId, 'channels', 'data'));
-      const ch = chSnap.data() || { mine: [], competitors: [] };
-      const mine = await fetchChannels(ytKey, ch.mine).catch(()=>[]);
-      await snapshotChannels(mine);
-      const created = await maybeCreateWeeklyDigest(mine);
-      alert(created ? 'Haftalık DM oluşturuldu.' : 'Bu hafta için DM zaten oluşturulmuş.');
-    }
-
     // ===== Init Flow =====
     applyWorkspaceUi();
     if (!workspaceId) {
-      // kullanıcı Workspace seçene kadar bekle
+      // Wait for workspace set
     } else {
       await ensureAuth();
       await ensureWorkspaceDocs();
-
-      // Basit sağlık/izin kontrolü: bu yazma denemesi Rules veya domain sorunlarını hızlı gösterir
-      try {
-        await setDoc(wsDoc('__health'), { t: Date.now() }, { merge: true });
-      } catch (e) {
-        console.error('Firestore erişim hatası:', e);
-        alert(
-          '🔥 Firestore izin hatası: ' + (e?.message || e) +
-          '\n— Authentication (Google) açık mı?'+
-          '\n— Authorized domains: sadiqabbaszade.github.io eklendi mi?'+
-          '\n— Firestore Rules yayımlandı mı?'
-        );
-      }
 
       // Live digests list
       onSnapshot(query(collection(db, 'workspaces', workspaceId, 'digests'), orderBy('createdAt','desc')), (qs) => {
@@ -750,7 +762,7 @@
         remindersCache = qs.docs.map(d => ({ id: d.id, ...d.data() }));
         renderReminders(remindersCache);
       });
-      setInterval(()=>checkReminders(remindersCache), 5000);
+      setInterval(()=>checkReminders(remindersCache), 5_000);
 
       // Live notes
       onSnapshot(query(collection(db, 'workspaces', workspaceId, 'notes'), orderBy('createdAt','desc')), (qs) => {
@@ -766,7 +778,51 @@
       addReminderBtn.onclick = addReminder;
       addNoteBtn.onclick = addNote;
       addThreadBtn.onclick = addThread;
-      forceDigest.onclick = generateDigestNow;
+
+      // Channels + Leaderboard
+      onSnapshot(wsDoc('settings'), async (stSnap) => {
+        const st = stSnap.data() || {};
+        const ytKey = st.ytApiKey || '';
+        const chSnap = await getDoc(wsDoc('channels'));
+        const ch = chSnap.data() || { mine: [], competitors: [] };
+
+        // Fetch current data
+        const [mine, comps] = await Promise.all([
+          fetchChannels(ytKey, ch.mine).catch(()=>[]),
+          fetchChannels(ytKey, ch.competitors).catch(()=>[]),
+        ]);
+
+        renderChannelGrid(mineGrid, mine);
+        renderChannelGrid(competitorGrid, comps);
+
+        // Save today snapshot for our channels
+        await snapshotChannels(mine);
+
+        // Build leaderboard from weekly deltas (ours only)
+        const d = new Date(); d.setHours(0,0,0,0);
+        const todayIso = d.toISOString().slice(0,10);
+        const past = new Date(d.getTime()-7*24*3600*1000);
+        const pastIso = past.toISOString().slice(0,10);
+
+        const weekly = [];
+        for (const ch of mine) {
+          const nowSnap = await getSnapshot(ch.id, todayIso) || { subs: ch.subs, views: ch.views };
+          const pastSnap = await getSnapshot(ch.id, pastIso) || { subs: ch.subs, views: ch.views };
+          const deltaSubs = Math.max(0, (nowSnap.subs||0) - (pastSnap.subs||0));
+          const growthPctSubs = (pastSnap.subs||0) > 0 ? (deltaSubs / pastSnap.subs) * 100 : 0;
+          weekly.push({ title: ch.title, growthPctSubs });
+        }
+        renderLeaderboard(weekly);
+
+        // Maybe create a fresh weekly digest (once per 7d)
+        const created = await maybeCreateWeeklyDigest(mine);
+        if (created) {
+          // flash banner
+          bannerTitle.textContent = 'Yeni Haftalık Rapor';
+          bannerText.textContent = 'DM kutusuna yeni bir gazete düştü!';
+          banner.classList.remove('hidden'); setTimeout(()=>banner.classList.add('hidden'), 5000);
+        }
+      });
     }
   </script>
 </body>
