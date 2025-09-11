@@ -476,25 +476,40 @@ service cloud.firestore {
     };
 
     mineAdd.onclick = async () => {
-      const id = mineNew.value.trim();
-      if (!id) return;
-      const snap = await getDoc(wsDoc('channels'));
-      const data = snap.data();
-      if (!data.mine.includes(id)) data.mine.push(id);
-      await updateDoc(wsDoc('channels'), data);
-      mineNew.value = '';
-      loadSettingsPanel();
-    };
-    compAdd.onclick = async () => {
-      const id = compNew.value.trim();
-      if (!id) return;
-      const snap = await getDoc(wsDoc('channels'));
-      const data = snap.data();
-      if (!data.competitors.includes(id)) data.competitors.push(id);
-      await updateDoc(wsDoc('channels'), data);
-      compNew.value = '';
-      loadSettingsPanel();
-    };
+  const raw = mineNew.value.trim();
+  if (!raw) return;
+
+  const st = await getDoc(wsDoc("settings"));
+  const ytKey = st.data()?.ytApiKey || "";
+  const id = await resolveChannelId(raw, ytKey);
+  if (!id) return;
+
+  const snap = await getDoc(wsDoc("channels"));
+  const data = snap.data();
+  if (!data.mine.includes(id)) data.mine.push(id);
+  await updateDoc(wsDoc("channels"), data);
+
+  mineNew.value = "";
+  loadSettingsPanel();
+};
+
+compAdd.onclick = async () => {
+  const raw = compNew.value.trim();
+  if (!raw) return;
+
+  const st = await getDoc(wsDoc("settings"));
+  const ytKey = st.data()?.ytApiKey || "";
+  const id = await resolveChannelId(raw, ytKey);
+  if (!id) return;
+
+  const snap = await getDoc(wsDoc("channels"));
+  const data = snap.data();
+  if (!data.competitors.includes(id)) data.competitors.push(id);
+  await updateDoc(wsDoc("channels"), data);
+
+  compNew.value = "";
+  loadSettingsPanel();
+};
 
     manageMine.onclick = () => settingsModal.showModal();
     manageCompetitors.onclick = () => settingsModal.showModal();
@@ -824,6 +839,50 @@ service cloud.firestore {
         }
       });
     }
+     // === URL'den Channel ID çıkarma ===
+async function resolveChannelId(input, ytKey) {
+  input = input.trim();
+
+  // Eğer doğrudan UC... ID verilmişse
+  if (input.startsWith("UC")) return input;
+
+  // Eğer link verilmişse
+  try {
+    const url = new URL(input);
+
+    // /channel/UC... formatı
+    if (url.pathname.startsWith("/channel/")) {
+      return url.pathname.split("/channel/")[1];
+    }
+
+    // /@username veya /c/CustomName → search.list API
+    let queryName = "";
+    if (url.pathname.startsWith("/@")) {
+      queryName = url.pathname.substring(2); // @ işaretini at
+    } else if (url.pathname.startsWith("/c/")) {
+      queryName = url.pathname.split("/c/")[1];
+    }
+
+    if (queryName) {
+      const apiUrl = new URL("https://www.googleapis.com/youtube/v3/search");
+      apiUrl.searchParams.set("part", "snippet");
+      apiUrl.searchParams.set("q", queryName);
+      apiUrl.searchParams.set("type", "channel");
+      apiUrl.searchParams.set("key", ytKey);
+
+      const res = await fetch(apiUrl);
+      const data = await res.json();
+      if (data.items?.length) {
+        return data.items[0].id.channelId || data.items[0].snippet.channelId;
+      }
+    }
+  } catch (e) {
+    console.warn("URL çözümleme hatası:", e);
+  }
+
+  alert("Geçerli bir YouTube kanal URL’si veya ID’si giriniz.");
+  return null;
+}
   </script>
 </body>
 </html>
