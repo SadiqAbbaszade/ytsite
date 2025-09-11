@@ -71,13 +71,36 @@
       background: linear-gradient(180deg, #11161d, #0d1217);
       border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
       padding: 14px; display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center;
-      position: relative; overflow: hidden;
+      position: relative; overflow: visible;
     }
     .card .logo { width: 56px; height: 56px; border-radius: 50%; background: #0b0f14; display: grid; place-items: center; overflow: hidden; border: 1px solid #1d2530; }
     .card .meta { min-width: 0; }
     .card .name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .card .subs { color: var(--muted); font-size: 13px; margin-top: 3px; }
     .card .go { font-size: 13px; opacity: .9; }
+
+    /* Tooltip */
+    .tooltip {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #161c24;
+      color: var(--fg);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      font-size: 13px;
+      margin-bottom: 6px;
+      box-shadow: var(--shadow);
+      z-index: 20;
+      pointer-events: none;
+    }
+    .card:hover .tooltip { visibility: visible; opacity: 1; }
 
     /* Remove button (admin modunda görünür) */
     .remove-btn {
@@ -276,23 +299,45 @@
       return String(n);
     }
 
+    // === Haftalık istatistik için yardımcılar ===
+    const todayKey = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    const weekAgoKey = () => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0,10); };
+
+    async function saveSnapshot(channelId, subs, views, cat){
+      // aynı gün için sadece bir kez yaz
+      const ref = doc(db, cat, channelId, "stats", todayKey());
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        await setDoc(ref, { subs: Number(subs||0), views: Number(views||0), createdAt: serverTimestamp() });
+      }
+    }
+
+    async function getWeeklyStats(channelId, cat){
+      const todayRef = doc(db, cat, channelId, "stats", todayKey());
+      const weekRef  = doc(db, cat, channelId, "stats", weekAgoKey());
+      const [todaySnap, weekSnap] = await Promise.all([getDoc(todayRef), getDoc(weekRef)]);
+      if (todaySnap.exists() && weekSnap.exists()) {
+        const a = todaySnap.data(), b = weekSnap.data();
+        return {
+          subsDelta: (a.subs||0) - (b.subs||0),
+          viewsDelta: (a.views||0) - (b.views||0)
+        };
+      }
+      return { subsDelta: 0, viewsDelta: 0 };
+    }
+
     // Kanal linkinden ID/handle çöz (yalnızca link alıyoruz)
     function parseChannelFromUrl(url) {
       try {
         const u = new URL(url);
-        // /channel/UCxxxx
         const mId = u.pathname.match(/\/channel\/(UC[0-9A-Za-z_-]{22,})/);
         if (mId) return { type: 'id', value: mId[1] };
-        // /@handle veya https://www.youtube.com/@handle
         const mHandle = u.pathname.match(/\/@([A-Za-z0-9._-]{2,})/);
         if (mHandle) return { type: 'handle', value: '@' + mHandle[1] };
-        // /c/CustomName (legacy custom URL)
         const mUser = u.pathname.match(/\/c\/([A-Za-z0-9._-]{2,})/);
         if (mUser) return { type: 'username', value: mUser[1] };
-        // Son çare: tüm URL'i aramada kullan
         return { type: 'search', value: url };
       } catch (e) {
-        // direkt @handle gelmiş olabilir
         if (url.startsWith('@')) return { type: 'handle', value: url };
         return { type: 'search', value: url };
       }
@@ -316,7 +361,6 @@
       const p = parseChannelFromUrl(inputUrl);
       if (p.type === 'id') return p.value;
       if (p.type === 'handle') {
-        // channels.list(forHandle=)
         const j = await ytFetch('channels', { part: 'id', forHandle: p.value });
         if (j.items && j.items[0]) return j.items[0].id;
       }
@@ -324,9 +368,8 @@
         const j = await ytFetch('channels', { part: 'id', forUsername: p.value });
         if (j.items && j.items[0]) return j.items[0].id;
       }
-      // Fallback: search
       const j = await ytFetch('search', { part: 'snippet', q: p.value, type: 'channel', maxResults: 1 });
-      if (j.items && j.items[0] && j.items[0].snippet && j.items[0].snippet.channelId) return j.items[0].snippet.channelId;
+      if (j.items && j.items[0]?.snippet?.channelId) return j.items[0].snippet.channelId;
       throw new Error('Kanal bulunamadı. Lütfen geçerli bir kanal linki verin.');
     }
 
@@ -336,8 +379,10 @@
       if (!it) throw new Error('Kanal bilgisi alınamadı.');
       const { title, thumbnails, customUrl } = it.snippet;
       const logo = (thumbnails && (thumbnails.high?.url || thumbnails.default?.url)) || '';
-      const subs = it.statistics?.subscriberCount ?? null; // bazı kanallarda gizli olabilir
-      return { channelId, title, logo, subscribers: subs ? Number(subs) : null, url: customUrl ? `https://www.youtube.com/${customUrl}` : `https://www.youtube.com/channel/${channelId}` };
+      const subs = Number(it.statistics?.subscriberCount ?? 0);   // gizliyse 0
+      const views = Number(it.statistics?.viewCount ?? 0);
+      const url   = customUrl ? `https://www.youtube.com/${customUrl}` : `https://www.youtube.com/channel/${channelId}`;
+      return { channelId, title, logo, subscribers: subs, views, url };
     }
 
     // Firestore koleksiyon yolları
@@ -356,6 +401,11 @@
         subscribersCache: info.subscribers,
         createdAt: serverTimestamp(),
       }, { merge: true });
+
+      // Ekleme sırasında snapshot da kaydet (bugünün kaydı yoksa)
+      const cat = colRef === colMine ? 'myChannels' : 'competitors';
+      await saveSnapshot(channelId, info.subscribers, info.views, cat);
+
       return info;
     }
 
@@ -363,20 +413,40 @@
       await deleteDoc(doc(colRef, channelId));
     }
 
-    // UI render
-    function channelCardHTML(data, category) {
-      const subsText = data.subscribersLive != null ? formatSubs(data.subscribersLive) : (data.subscribersCache != null ? formatSubs(data.subscribersCache) + ' (cache)' : 'Gizli');
-      return `
-        <div class="card" data-id="${data.channelId}" data-cat="${category}">
-          <div class="logo"><img src="${data.logo || ''}" alt="logo" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"/></div>
-          <div class="meta">
-            <div class="name" title="${data.title || ''}">${data.title || '—'}</div>
-            <div class="subs">Abone: <span>${subsText}</span></div>
-          </div>
-          <div class="go"><a href="${data.url}" target="_blank" rel="noopener">↗︎ Aç</a></div>
-          <button class="remove-btn" title="Sil">Sil</button>
-        </div>`;
-    }
+    // UI render (tooltip ile)
+    function channelCardHTML(data, category, s = { subsDelta: 0, viewsDelta: 0 }) {
+  const subsText = data.subscribersLive != null
+    ? formatSubs(data.subscribersLive)
+    : (data.subscribersCache != null
+        ? formatSubs(data.subscribersCache) + ' (cache)'
+        : 'Gizli');
+
+  function sign(v) { return v > 0 ? '+' : (v < 0 ? '−' : ''); }
+
+  return `
+    <div class="card" data-id="${data.channelId}" data-cat="${category}">
+      <div class="logo">
+        <img src="${data.logo || ''}" alt="logo" 
+             style="width:100%;height:100%;object-fit:cover" 
+             onerror="this.style.display='none'"/>
+      </div>
+      <div class="meta">
+        <div class="name" title="${data.title || ''}">${data.title || '—'}</div>
+        <div class="subs">Abone: <span>${subsText}</span></div>
+      </div>
+      <div class="go"><a href="${data.url}" target="_blank" rel="noopener">↗︎ Aç</a></div>
+      <button class="remove-btn" title="Sil">Sil</button>
+      <div class="tooltip">
+        <img src="https://raw.githubusercontent.com/kullanici/repo/main/assets/icons/abonelik.png" 
+             alt="abone" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">
+        Abone artışı (7g): ${sign(s.subsDelta)}${formatSubs(Math.abs(s.subsDelta))}<br>
+        
+        <img src="https://raw.githubusercontent.com/kullanici/repo/main/assets/icons/izlenme.png" 
+             alt="izlenme" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">
+        İzlenme artışı (7g): ${sign(s.viewsDelta)}${formatSubs(Math.abs(s.viewsDelta))}
+      </div>
+    </div>`;
+}
 
     function bindCardEvents(rootEl, colRef) {
       rootEl.querySelectorAll('.card .remove-btn').forEach(btn => {
@@ -390,18 +460,15 @@
       });
       rootEl.querySelectorAll('.card').forEach(card => {
         card.addEventListener('click', (e) => {
-          // linke zaten tıklanırsa yeni sekme açılıyor; kart tıklaması da açsın
           const url = card.querySelector('a')?.href; if (url) window.open(url, '_blank');
         });
       });
     }
 
-    // Canlı veri çek ve kartları güncelle
+    // Canlı veri çek ve hızlıca sadece abone sayısını güncelle (opsiyonel)
     async function refreshLiveStats(container) {
-      // tüm kartlardaki id'leri topla
       const ids = Array.from(container.querySelectorAll('.card')).map(c => c.dataset.id).filter(Boolean);
       const apiKey = getApiKey(); if (!apiKey || ids.length === 0) return;
-      // 50 id sınırı -> parça parça
       for (let i = 0; i < ids.length; i += 50) {
         const slice = ids.slice(i, i+50);
         try {
@@ -422,34 +489,44 @@
       }
     }
 
-    // Snapshot dinlemeleri
+    // Snapshot dinlemeleri — burada canlı info çek, snapshot yaz, haftalık delta hesapla ve kartı bas
     onSnapshot(colMine, async (snap) => {
       mineGrid.innerHTML = '';
-      snap.forEach(docu => {
+      const tasks = snap.docs.map(async (docu) => {
         const d = docu.data();
-        const html = channelCardHTML({ ...d, subscribersLive: null }, 'mine');
-        mineGrid.insertAdjacentHTML('beforeend', html);
+        // Canlı bilgi çek
+        const info = await fetchChannelInfo(d.channelId);
+        // Günlük snapshot kaydet
+        await saveSnapshot(info.channelId, info.subscribers, info.views, 'myChannels');
+        // Haftalık delta al
+        const stats = await getWeeklyStats(info.channelId, 'myChannels');
+        // Kartı yaz
+        mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'mine', stats));
       });
+      await Promise.allSettled(tasks);
       bindCardEvents(mineGrid, colMine);
-      refreshLiveStats(mineGrid);
+      // refreshLiveStats(mineGrid); // istersen açık bırak
     });
 
     onSnapshot(colComp, async (snap) => {
       compGrid.innerHTML = '';
-      snap.forEach(docu => {
+      const tasks = snap.docs.map(async (docu) => {
         const d = docu.data();
-        const html = channelCardHTML({ ...d, subscribersLive: null }, 'comp');
-        compGrid.insertAdjacentHTML('beforeend', html);
+        const info = await fetchChannelInfo(d.channelId);
+        await saveSnapshot(info.channelId, info.subscribers, info.views, 'competitors');
+        const stats = await getWeeklyStats(info.channelId, 'competitors');
+        compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'comp', stats));
       });
+      await Promise.allSettled(tasks);
       bindCardEvents(compGrid, colComp);
-      refreshLiveStats(compGrid);
+      // refreshLiveStats(compGrid);
     });
 
     // Ekleme butonları
     async function handleAdd(colRef, inputEl) {
       const url = inputEl.value.trim(); if (!url) return alert('Link gir');
       try {
-        const info = await addChannel(colRef, url);
+        await addChannel(colRef, url); // ekleyince snapshot dinleyicisi zaten tetiklenir
         inputEl.value = '';
       } catch (e) {
         alert(e.message || 'Hata');
