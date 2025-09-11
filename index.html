@@ -59,7 +59,7 @@
         <div class="font-bold" id="bannerTitle">Hatırlatma</div>
         <div class="text-sm text-slate-800" id="bannerText"></div>
       </div>
-      <button class="pill" onclick="document.getElementById('banner').classList.add('hidden')">Kapat</button>
+      <button id="bannerClose" class="pill">Kapat</button>
     </div>
   </div>
 
@@ -140,7 +140,7 @@
   <dialog id="settingsModal" class="glass rounded-2xl max-w-2xl w-[92%] p-0">
     <div class="p-5 border-b border-slate-200 flex items-center justify-between">
       <h3 class="text-lg font-bold">Ayarlar</h3>
-      <button class="pill" onclick="settingsModal.close()">Kapat</button>
+      <button id="settingsClose" class="pill">Kapat</button>
     </div>
     <div class="p-5 space-y-4">
       <div class="grid sm:grid-cols-2 gap-4">
@@ -190,7 +190,7 @@
   <dialog id="dmModal" class="glass rounded-2xl max-w-3xl w-[92%] p-0">
     <div class="p-5 border-b border-slate-200 flex items-center justify-between">
       <h3 class="text-lg font-bold">DM Kutusu (Haftalık Gazete)</h3>
-      <button class="pill" onclick="dmModal.close()">Kapat</button>
+      <button id="dmClose" class="pill">Kapat</button>
     </div>
     <div id="dmContainer" class="p-5 space-y-3 max-h-[70vh] overflow-y-auto"></div>
   </dialog>
@@ -209,15 +209,15 @@
 
   <!-- Firebase Config -->
   <script>
-  window.FB_CONFIG = {
-    apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
-    authDomain: "yt-sayt.firebaseapp.com",
-    projectId: "yt-sayt",
-    storageBucket: "yt-sayt.appspot.com",
-    messagingSenderId: "614904562607",
-    appId: "1:614904562607:web:f352a57fe3f4457077e55a"
-  };
-</script>
+    window.FB_CONFIG = {
+      apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
+      authDomain: "yt-sayt.firebaseapp.com",
+      projectId: "yt-sayt",
+      storageBucket: "yt-sayt.appspot.com",
+      messagingSenderId: "614904562607",
+      appId: "1:614904562607:web:f352a57fe3f4457077e55a"
+    };
+  </script>
 
   <!-- App Script -->
   <script type="module">
@@ -245,6 +245,7 @@
     const settingsButton = el('settingsButton');
     const settingsWorkspace = el('settingsWorkspace');
     const settingsApiKey = el('settingsApiKey');
+    const settingsClose = el('settingsClose');
 
     const mineGrid = el('mineGrid');
     const competitorGrid = el('competitorGrid');
@@ -255,11 +256,13 @@
     const dmModal = el('dmModal');
     const dmContainer = el('dmContainer');
     const dmCount = el('dmCount');
+    const dmClose = el('dmClose');
     const openDmFromSidebar = el('openDmFromSidebar');
 
     const banner = el('banner');
     const bannerTitle = el('bannerTitle');
     const bannerText = el('bannerText');
+    const bannerClose = el('bannerClose');
     const notifyButton = el('notifyButton');
 
     const addReminderBtn = el('addReminder');
@@ -361,6 +364,7 @@
       settingsModal.close();
       location.reload();
     };
+    settingsClose.onclick = () => settingsModal.close();
 
     // ===== Firestore helpers =====
     const wsDoc = (...path) => doc(db, 'workspaces', workspaceId, ...path);
@@ -569,7 +573,7 @@
         if (!workspaceId) throw new Error('Workspace seçilmedi.');
         const text = prompt('Hatırlatma metni'); if (!text) return;
         const hint = 'Örn: 2025-09-11 18:30';
-        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)' + hint);
+        const when = prompt('Ne zaman? (YYYY-MM-DD HH:MM)\n' + hint);
         if (!when) return;
         const parsed = Date.parse(when.replace(' ', 'T'));
         if (isNaN(parsed)) { alert('Tarih formatı geçersiz. ' + hint); return; }
@@ -688,6 +692,8 @@
     // ===== DM UI =====
     dmButton.onclick = () => dmModal.showModal();
     openDmFromSidebar.onclick = () => dmModal.showModal();
+    dmClose.onclick = () => dmModal.close();
+    bannerClose.onclick = () => banner.classList.add('hidden');
 
     // Request Notifications
     notifyButton.onclick = async () => {
@@ -695,6 +701,19 @@
       const perm = await Notification.requestPermission();
       alert(perm === 'granted' ? 'Bildirimler aktif.' : 'Bildirim verilmedi.');
     };
+
+    // Helper: generate digest now (for test button)
+    async function generateDigestNow() {
+      const stSnap = await getDoc(wsDoc('settings'));
+      const st = stSnap.data() || {};
+      const ytKey = st.ytApiKey || '';
+      const chSnap = await getDoc(wsDoc('channels'));
+      const ch = chSnap.data() || { mine: [], competitors: [] };
+      const mine = await fetchChannels(ytKey, ch.mine).catch(()=>[]);
+      await snapshotChannels(mine);
+      const created = await maybeCreateWeeklyDigest(mine);
+      alert(created ? 'Haftalık DM oluşturuldu.' : 'Bu hafta için DM zaten oluşturulmuş.');
+    }
 
     // ===== Init Flow =====
     applyWorkspaceUi();
@@ -710,14 +729,11 @@
       } catch (e) {
         console.error('Firestore erişim hatası:', e);
         alert(
-  '🔥 Firestore izin hatası: ' + (e?.message || e) +
-  '\\n— Authentication (Google) açık mı?' +
-  '\\n— Authorized domains: sadiqabbaszade.github.io eklendi mi?' +
-  '\\n— Firestore Rules yayımlandı mı?'
-);
-— Authentication (Google) açık mı?
-— Authorized domains: sadiqabbaszade.github.io eklendi mi?
-— Firestore Rules yayımlandı mı?');
+          '🔥 Firestore izin hatası: ' + (e?.message || e) +
+          '\n— Authentication (Google) açık mı?'+
+          '\n— Authorized domains: sadiqabbaszade.github.io eklendi mi?'+
+          '\n— Firestore Rules yayımlandı mı?'
+        );
       }
 
       // Live digests list
@@ -734,7 +750,7 @@
         remindersCache = qs.docs.map(d => ({ id: d.id, ...d.data() }));
         renderReminders(remindersCache);
       });
-      setInterval(()=>checkReminders(remindersCache), 5_000);
+      setInterval(()=>checkReminders(remindersCache), 5000);
 
       // Live notes
       onSnapshot(query(collection(db, 'workspaces', workspaceId, 'notes'), orderBy('createdAt','desc')), (qs) => {
@@ -750,46 +766,7 @@
       addReminderBtn.onclick = addReminder;
       addNoteBtn.onclick = addNote;
       addThreadBtn.onclick = addThread;
-
-      // Channels + Leaderboard
-      onSnapshot(wsDoc('settings'), async (stSnap) => {
-        const st = stSnap.data() || {};
-        const ytKey = st.ytApiKey || '';
-        const chSnap = await getDoc(wsDoc('channels'));
-        const ch = chSnap.data() || { mine: [], competitors: [] };
-
-        const [mine, comps] = await Promise.all([
-          fetchChannels(ytKey, ch.mine).catch(()=>[]),
-          fetchChannels(ytKey, ch.competitors).catch(()=>[]),
-        ]);
-
-        renderChannelGrid(mineGrid, mine);
-        renderChannelGrid(competitorGrid, comps);
-
-        await snapshotChannels(mine);
-
-        const d = new Date(); d.setHours(0,0,0,0);
-        const todayIso = d.toISOString().slice(0,10);
-        const past = new Date(d.getTime()-7*24*3600*1000);
-        const pastIso = past.toISOString().slice(0,10);
-
-        const weekly = [];
-        for (const ch of mine) {
-          const nowSnap = await getSnapshot(ch.id, todayIso) || { subs: ch.subs, views: ch.views };
-          const pastSnap = await getSnapshot(ch.id, pastIso) || { subs: ch.subs, views: ch.views };
-          const deltaSubs = Math.max(0, (nowSnap.subs||0) - (pastSnap.subs||0));
-          const growthPctSubs = (pastSnap.subs||0) > 0 ? (deltaSubs / pastSnap.subs) * 100 : 0;
-          weekly.push({ title: ch.title, growthPctSubs });
-        }
-        renderLeaderboard(weekly);
-
-        const created = await maybeCreateWeeklyDigest(mine);
-        if (created) {
-          bannerTitle.textContent = 'Yeni Haftalık Rapor';
-          bannerText.textContent = 'DM kutusuna yeni bir gazete düştü!';
-          banner.classList.remove('hidden'); setTimeout(()=>banner.classList.add('hidden'), 5000);
-        }
-      });
+      forceDigest.onclick = generateDigestNow;
     }
   </script>
 </body>
