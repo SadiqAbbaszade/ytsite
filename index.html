@@ -394,13 +394,13 @@
       const channelId = await resolveChannelId(inputUrl);
       const info = await fetchChannelInfo(channelId);
       await setDoc(doc(colRef, channelId), {
-        url: info.url,
-        channelId,
-        title: info.title,
-        logo: info.logo,
-        subscribersCache: info.subscribers,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
+  url: info.url,
+  channelId,
+  title: info.title,
+  logo: info.logo,
+  subscribersCache: info.subscribers,
+  createdAt: Date.now(),   // ✅ client tarafı timestamp
+}, { merge: true });
 
       // Ekleme sırasında snapshot da kaydet (bugünün kaydı yoksa)
       const cat = colRef === colMine ? 'myChannels' : 'competitors';
@@ -486,6 +486,7 @@
   const colRef = (cat === 'mine') ? colMine : colComp;
   setDoc(doc(colRef, id), {
     subscribersCache: subs,
+    ubscribersLive: subs,
     updatedAt: serverTimestamp()
   }, { merge: true });
 }
