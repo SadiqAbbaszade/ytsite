@@ -505,46 +505,38 @@ const qMine = query(colMine, orderBy("createdAt", "asc"));
 const qComp = query(colComp, orderBy("createdAt", "asc"));
 
 // Snapshot dinlemeleri
+import { query, orderBy } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+// Koleksiyon sorguları
+const qMine = query(colMine, orderBy("createdAt", "asc"));
+const qComp = query(colComp, orderBy("createdAt", "asc"));
+
+// Snapshot dinlemeleri
 onSnapshot(qMine, async (snap) => {
   mineGrid.innerHTML = '';
-  snap.forEach(docu => {
+  const tasks = snap.docs.map(async (docu) => {
     const d = docu.data();
-    const html = channelCardHTML({ ...d, subscribersLive: null }, 'mine');
-    mineGrid.insertAdjacentHTML('beforeend', html);
+    const info = await fetchChannelInfo(d.channelId);
+    await saveSnapshot(info.channelId, info.subscribers, info.views, 'myChannels');
+    const stats = await getWeeklyStats(info.channelId, 'myChannels');
+    mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'mine', stats));
   });
-  bindCardEvents(mineGrid, colMine);
-  refreshLiveStats(mineGrid);
+  await Promise.all(tasks);
 });
 
 onSnapshot(qComp, async (snap) => {
   compGrid.innerHTML = '';
-  snap.forEach(docu => {
+  const tasks = snap.docs.map(async (docu) => {
     const d = docu.data();
-    const html = channelCardHTML({ ...d, subscribersLive: null }, 'comp');
-    compGrid.insertAdjacentHTML('beforeend', html);
+    const info = await fetchChannelInfo(d.channelId);
+    await saveSnapshot(info.channelId, info.subscribers, info.views, 'competitors');
+    const stats = await getWeeklyStats(info.channelId, 'competitors');
+    compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'comp', stats));
   });
-  bindCardEvents(compGrid, colComp);
-  refreshLiveStats(compGrid);
+  await Promise.all(tasks);
 });
 
-      await Promise.allSettled(tasks);
-      bindCardEvents(mineGrid, colMine);
-      // refreshLiveStats(mineGrid); // istersen açık bırak
-    });
-
-    onSnapshot(colComp, async (snap) => {
-      compGrid.innerHTML = '';
-      const tasks = snap.docs.map(async (docu) => {
-        const d = docu.data();
-        const info = await fetchChannelInfo(d.channelId);
-        await saveSnapshot(info.channelId, info.subscribers, info.views, 'competitors');
-        const stats = await getWeeklyStats(info.channelId, 'competitors');
-        compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'comp', stats));
-      });
-      await Promise.allSettled(tasks);
-      bindCardEvents(compGrid, colComp);
-      // refreshLiveStats(compGrid);
-    });
+    
 
     // Ekleme butonları
     async function handleAdd(colRef, inputEl) {
