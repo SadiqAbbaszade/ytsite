@@ -484,20 +484,34 @@
   const span = card.querySelector('.subs span');
   if (span) span.textContent = formatSubs(subs);
 
-  // 🔥 Firestore’a güncel abone sayısını yaz
-  const cat = card.dataset.cat; // 'mine' veya 'comp'
-  const colRef = (cat === 'mine') ? colMine : colComp;
-  setDoc(doc(colRef, id), {
-      subscribersCache: subs,
-      subscribersLive: subs,
-      updatedAt: serverTimestamp()
-  }, { merge: true });
-        } catch (err) {
-          console.warn('Canlı istatistik çekilemedi:', err);
-        }
-        await sleep(350);
-      }
-    }
+  /for (let i = 0; i < ids.length; i += 50) {
+  const slice = ids.slice(i, i+50);
+  try {
+    const j = await ytFetch('channels', { part: 'statistics', id: slice.join(',') });
+    const map = new Map((j.items||[]).map(it => [it.id, Number(it.statistics?.subscriberCount ?? NaN)]));
+    slice.forEach(id => {
+      const card = container.querySelector(`.card[data-id="${id}"]`);
+      const subs = map.get(id);
+      if (card && isFinite(subs)) {
+        const span = card.querySelector('.subs span');
+        if (span) span.textContent = formatSubs(subs);
+
+        // 🔥 Firestore’a güncel abone sayısını yaz
+        const cat = card.dataset.cat; // 'mine' veya 'comp'
+        const colRef = (cat === 'mine') ? colMine : colComp;
+        setDoc(doc(colRef, id), {
+          subscribersCache: subs,
+          subscribersLive: subs,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }   // <-- bu if için kapanış
+    });   // <-- forEach için kapanış
+  }       // <-- try için KAPANMAMIŞ, burası eksik!
+  catch (err) {
+    console.warn('Canlı istatistik çekilemedi:', err);
+  }
+  await sleep(350);
+}
 
     // Snapshot dinlemeleri — burada canlı info çek, snapshot yaz, haftalık delta hesapla ve kartı bas
     import { query, orderBy } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
