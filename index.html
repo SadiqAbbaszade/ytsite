@@ -484,7 +484,6 @@
   const span = card.querySelector('.subs span');
   if (span) span.textContent = formatSubs(subs);
 
-  /for (let i = 0; i < ids.length; i += 50) {
   const slice = ids.slice(i, i+50);
   try {
     const j = await ytFetch('channels', { part: 'statistics', id: slice.join(',') });
