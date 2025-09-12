@@ -508,8 +508,6 @@
       }
     }
 
-    // Snapshot dinlemeleri — burada canlı info çek, snapshot yaz, haftalık delta hesapla ve kartı bas
-    import { query, orderBy } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const qMine = query(colMine, orderBy("createdAt", "asc"));
 const qComp = query(colComp, orderBy("createdAt", "asc"));
