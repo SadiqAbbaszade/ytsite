@@ -504,30 +504,31 @@
 const qMine = query(colMine, orderBy("createdAt", "asc"));
 const qComp = query(colComp, orderBy("createdAt", "asc"));
 
-// Snapshot dinlemeleri
+// ---- YENİSİ ----
 onSnapshot(qMine, async (snap) => {
-  mineGrid.innerHTML = '';
-  const tasks = snap.docs.map(async (docu) => {
-    const d = docu.data();
-    const info = await fetchChannelInfo(d.channelId);
-    await saveSnapshot(info.channelId, info.subscribers, info.views, 'myChannels');
-    const stats = await getWeeklyStats(info.channelId, 'myChannels');
-    mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...info, ...d }, 'mine', stats));
-  });
-  await Promise.all(tasks);
+  // Önce tüm HTML parçalarını hazırla
+  const pieces = await Promise.all(
+    snap.docs.map(async (docu) => {
+      const d = docu.data();
+      const stats = await getWeeklyStats(d.channelId, 'myChannels');
+      return channelCardHTML(d, 'mine', stats);
+    })
+  );
+  // Tek seferde DOM’a yaz → tekrar oluşmaz
+  mineGrid.innerHTML = pieces.join('');
 });
 
 onSnapshot(qComp, async (snap) => {
-  compGrid.innerHTML = '';
-  const tasks = snap.docs.map(async (docu) => {
-    const d = docu.data();
-    const info = await fetchChannelInfo(d.channelId);
-    await saveSnapshot(info.channelId, info.subscribers, info.views, 'competitors');
-    const stats = await getWeeklyStats(info.channelId, 'competitors');
-    compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...info, ...d }, 'comp', stats));
-  });
-  await Promise.all(tasks);
+  const pieces = await Promise.all(
+    snap.docs.map(async (docu) => {
+      const d = docu.data();
+      const stats = await getWeeklyStats(d.channelId, 'competitors');
+      return channelCardHTML(d, 'comp', stats);
+    })
+  );
+  compGrid.innerHTML = pieces.join('');
 });
+
     
 
     // Ekleme butonları
