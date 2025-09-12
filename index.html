@@ -547,6 +547,15 @@ onSnapshot(qComp, async (snap) => {
 
     // İlk açılış: admin gizli olsun; FAB gösterelim (isteğe bağlı)
     document.body.classList.remove('admin');
+    // İlk açılışta hemen çalıştır
+refreshLiveStats(mineGrid);
+refreshLiveStats(compGrid);
+
+// Sonraki sorgular: her 60 sn
+setInterval(() => {
+  refreshLiveStats(mineGrid);
+  refreshLiveStats(compGrid);
+}, 60_000);
     adminFab.style.display = 'inline-flex';
   </script>
 </body>
