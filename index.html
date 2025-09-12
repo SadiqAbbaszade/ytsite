@@ -301,7 +301,7 @@
 
     // === Haftalık istatistik için yardımcılar ===
     const todayKey = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
-    const weekAgoKey = () => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0,10); };
+    
 
     async function saveSnapshot(channelId, subs, views, cat){
       // aynı gün için sadece bir kez yaz
@@ -311,20 +311,30 @@
         await setDoc(ref, { subs: Number(subs||0), views: Number(views||0), createdAt: serverTimestamp() });
       }
     }
+    import { query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+    async function getLast7DaysStats(channelId, cat) {
+  // Son 7 günün ilk ve son kaydını bul
+  const statsCol = collection(db, cat, channelId, "stats");
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const cutoff = sevenDaysAgo.toISOString().slice(0,10); // "YYYY-MM-DD"
 
-    async function getWeeklyStats(channelId, cat){
-      const todayRef = doc(db, cat, channelId, "stats", todayKey());
-      const weekRef  = doc(db, cat, channelId, "stats", weekAgoKey());
-      const [todaySnap, weekSnap] = await Promise.all([getDoc(todayRef), getDoc(weekRef)]);
-      if (todaySnap.exists() && weekSnap.exists()) {
-        const a = todaySnap.data(), b = weekSnap.data();
-        return {
-          subsDelta: (a.subs||0) - (b.subs||0),
-          viewsDelta: (a.views||0) - (b.views||0)
-        };
-      }
-      return { subsDelta: 0, viewsDelta: 0 };
-    }
+  // Doküman id'si tarih string olduğu için alfabetik sıralama = kronolojik
+  const q = query(statsCol, where("__name__", ">=", cutoff), orderBy("__name__"));
+  const snap = await getDocs(q);
+
+  if (snap.empty) return { subsDelta: 0, viewsDelta: 0 };
+
+  // İlk ve son kayıttaki abone/izlenme sayıları
+  let first = snap.docs[0].data();
+  let last  = snap.docs[snap.docs.length - 1].data();
+
+  return {
+    subsDelta: (last.subs || 0) - (first.subs || 0),
+    viewsDelta: (last.views || 0) - (first.views || 0)
+  };
+}
+    
 
     // Kanal linkinden ID/handle çöz (yalnızca link alıyoruz)
     function parseChannelFromUrl(url) {
@@ -510,7 +520,7 @@ onSnapshot(qMine, async (snap) => {
   const pieces = await Promise.all(
     snap.docs.map(async (docu) => {
       const d = docu.data();
-      const stats = await getWeeklyStats(d.channelId, 'myChannels');
+      const stats = await getLast7DaysStats(info.channelId, 'myChannels');
       return channelCardHTML(d, 'mine', stats);
     })
   );
@@ -522,7 +532,7 @@ onSnapshot(qComp, async (snap) => {
   const pieces = await Promise.all(
     snap.docs.map(async (docu) => {
       const d = docu.data();
-      const stats = await getWeeklyStats(d.channelId, 'competitors');
+      const stats = await getLast7DaysStats(info.channelId, 'competitors');
       return channelCardHTML(d, 'comp', stats);
     })
   );
