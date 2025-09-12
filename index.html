@@ -415,11 +415,14 @@
 
     // UI render (tooltip ile)
     function channelCardHTML(data, category, s = { subsDelta: 0, viewsDelta: 0 }) {
-  const subsText = data.subscribersLive != null
+  const subsText =
+  (data.subscribersLive != null && isFinite(data.subscribersLive))
     ? formatSubs(data.subscribersLive)
-    : (data.subscribersCache != null
-        ? formatSubs(data.subscribersCache) + ' (cache)'
-        : 'Gizli');
+    : (data.subscribersCache != null && isFinite(data.subscribersCache))
+      ? formatSubs(data.subscribersCache) + ' (cache)'
+      : (data.subscribers != null && isFinite(data.subscribers))
+        ? formatSubs(data.subscribers) + ' (api)'
+        : 'Gizli';
 
   function sign(v) { return v > 0 ? '+' : (v < 0 ? '−' : ''); }
 
@@ -485,12 +488,10 @@
   const cat = card.dataset.cat; // 'mine' veya 'comp'
   const colRef = (cat === 'mine') ? colMine : colComp;
   setDoc(doc(colRef, id), {
-    subscribersCache: subs,
-    ubscribersLive: subs,
-    updatedAt: serverTimestamp()
+      subscribersCache: subs,
+      subscribersLive: subs,
+      updatedAt: serverTimestamp()
   }, { merge: true });
-}
-          });
         } catch (err) {
           console.warn('Canlı istatistik çekilemedi:', err);
         }
@@ -515,6 +516,7 @@ onSnapshot(qMine, async (snap) => {
     mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'mine', stats));
   });
   await Promise.all(tasks);
+  refreshLiveStats(mineGrid);
 });
 
 onSnapshot(qComp, async (snap) => {
@@ -527,6 +529,11 @@ onSnapshot(qComp, async (snap) => {
     compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'comp', stats));
   });
   await Promise.all(tasks);
+  refreshLiveStats(compGrid);
+  setInterval(() => {
+  refreshLiveStats(mineGrid);
+  refreshLiveStats(compGrid);
+}, 60_000); // 1 dk
 });
     
 
