@@ -512,7 +512,7 @@ onSnapshot(qMine, async (snap) => {
     const info = await fetchChannelInfo(d.channelId);
     await saveSnapshot(info.channelId, info.subscribers, info.views, 'myChannels');
     const stats = await getWeeklyStats(info.channelId, 'myChannels');
-    mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'mine', stats));
+    mineGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...info, ...d }, 'mine', stats));
   });
   await Promise.all(tasks);
 });
@@ -524,7 +524,7 @@ onSnapshot(qComp, async (snap) => {
     const info = await fetchChannelInfo(d.channelId);
     await saveSnapshot(info.channelId, info.subscribers, info.views, 'competitors');
     const stats = await getWeeklyStats(info.channelId, 'competitors');
-    compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...d, ...info }, 'comp', stats));
+    compGrid.insertAdjacentHTML('beforeend', channelCardHTML({ ...info, ...d }, 'comp', stats));
   });
   await Promise.all(tasks);
 });
