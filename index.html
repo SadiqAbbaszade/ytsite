@@ -524,7 +524,7 @@ onSnapshot(qMine, async (snap) => {
     })
   );
   mineGrid.innerHTML = pieces.join('');
-  bindCardEvents(mineGrid, colMine);
+  bindCardEvents(mineGrid, colMine); // 🔑 silme butonlarını aktif et
 });
 
 onSnapshot(qComp, async (snap) => {
@@ -536,7 +536,7 @@ onSnapshot(qComp, async (snap) => {
     })
   );
   compGrid.innerHTML = pieces.join('');
-  bindCardEvents(compGrid, colComp);
+  bindCardEvents(compGrid, colComp); // 🔑 silme butonlarını aktif et
 });
     
 
