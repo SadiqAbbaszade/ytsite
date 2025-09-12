@@ -516,29 +516,28 @@ const qComp = query(colComp, orderBy("createdAt", "asc"));
 
 // ---- YENİSİ ----
 onSnapshot(qMine, async (snap) => {
-  // Önce tüm HTML parçalarını hazırla
   const pieces = await Promise.all(
     snap.docs.map(async (docu) => {
       const d = docu.data();
-      const stats = await getLast7DaysStats(info.channelId, 'myChannels');
+      const stats = await getLast7DaysStats(d.channelId, 'myChannels');
       return channelCardHTML(d, 'mine', stats);
     })
   );
-  // Tek seferde DOM’a yaz → tekrar oluşmaz
   mineGrid.innerHTML = pieces.join('');
+  bindCardEvents(mineGrid, colMine);
 });
 
 onSnapshot(qComp, async (snap) => {
   const pieces = await Promise.all(
     snap.docs.map(async (docu) => {
       const d = docu.data();
-      const stats = await getLast7DaysStats(info.channelId, 'competitors');
+      const stats = await getLast7DaysStats(d.channelId, 'competitors');
       return channelCardHTML(d, 'comp', stats);
     })
   );
   compGrid.innerHTML = pieces.join('');
+  bindCardEvents(compGrid, colComp);
 });
-
     
 
     // Ekleme butonları
