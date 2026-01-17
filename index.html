@@ -1,232 +1,163 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>YT Panel</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <title>YouTube Rakip Kanal Sıralama</title>
   <style>
-    :root {
-      --bg: #0b0d10;
-      --card: #101418;
-      --muted: #7a8699;
-      --fg: #e9eef5;
-      --accent: #7c5cff;
-      --accent-2: #3ddc97;
-      --danger: #ff5c7a;
-      --border: #1b2129;
-      --shadow: 0 8px 24px rgba(0,0,0,.35);
-      --radius: 16px;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
     body {
-      margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 800px at 80% -10%, rgba(124,92,255,.15), transparent), var(--bg);
-      color: var(--fg);
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #000;
+      color: #fff;
     }
-    a { color: inherit; text-decoration: none; }
 
-    /* Header */
-    .app-header {
-      position: sticky; top: 0; z-index: 50;
-      backdrop-filter: saturate(140%) blur(8px);
-      background: rgba(11,13,16,.6);
-      border-bottom: 1px solid var(--border);
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
     }
-    .header-inner {
-      max-width: 1200px; margin: 0 auto; padding: 14px 20px;
-      display: flex; align-items: center; gap: 16px; justify-content: space-between;
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
     }
-    .brand { display: flex; gap: 10px; align-items: center; font-weight: 700; letter-spacing: .2px; }
-    .brand-badge { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #9d7bff); box-shadow: var(--shadow); display: grid; place-items: center; font-size: 14px; }
-    .header-actions { display: flex; gap: 10px; align-items: center; }
-    .btn, button {
-      display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border);
-      background: linear-gradient(180deg, #141921, #0f141a); color: var(--fg);
-      padding: 10px 14px; border-radius: 12px; cursor: pointer; font-weight: 600;
-      transition: transform .04s ease, border-color .2s ease, background .2s ease;
+
+    .add-channel {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
     }
-    .btn:hover { border-color: #2a3340; }
-    .btn:active { transform: translateY(1px); }
-    .btn-primary { background: linear-gradient(180deg, #7c5cff, #6b4aff); border-color: #6b4aff; }
 
-    /* Container */
-    .container { max-width: 1200px; margin: 28px auto 100px; padding: 0 20px; }
-
-    /* Section */
-    .section {
-      margin-bottom: 34px; position: relative;
-    }
-    .section h2 { margin: 0 0 12px; font-size: 20px; letter-spacing: .2px; }
-    .section .hint { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
-
-    /* Grids */
-    .grid { display: grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap: 14px; }
-
-    /* Cards */
-    .card {
-      background: linear-gradient(180deg, #11161d, #0d1217);
-      border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
-      padding: 14px; display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center;
-      position: relative; overflow: visible;
-    }
-    .card .logo { width: 56px; height: 56px; border-radius: 50%; background: #0b0f14; display: grid; place-items: center; overflow: hidden; border: 1px solid #1d2530; }
-    .card .meta { min-width: 0; }
-    .card .name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .card .subs { color: var(--muted); font-size: 13px; margin-top: 3px; }
-    .card .go { font-size: 13px; opacity: .9; }
-
-    /* Tooltip */
-    .tooltip {
-      visibility: hidden;
-      opacity: 0;
-      transition: opacity 0.2s;
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #161c24;
-      color: var(--fg);
-      padding: 8px 12px;
+    .add-channel input {
+      flex: 1;
+      padding: 12px;
       border-radius: 8px;
-      border: 1px solid var(--border);
-      white-space: nowrap;
+      border: none;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .add-channel button {
+      padding: 12px 18px;
+      border-radius: 8px;
+      border: none;
+      background: #1db954;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .channel {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      margin-bottom: 12px;
+      border-radius: 14px;
+      cursor: grab;
+    }
+
+    .number {
+      font-size: 20px;
+      font-weight: bold;
+      width: 30px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .info {
+      flex: 1;
+    }
+
+    .info .name {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .info .subs {
       font-size: 13px;
-      margin-bottom: 6px;
-      box-shadow: var(--shadow);
-      z-index: 20;
-      pointer-events: none;
-    }
-    .card:hover .tooltip { visibility: visible; opacity: 1; }
-
-    /* Remove button (admin modunda görünür) */
-    .remove-btn {
-      position: absolute; top: 8px; right: 8px; padding: 6px 8px; border-radius: 10px;
-      background: rgba(255,92,122,.1); border: 1px solid rgba(255,92,122,.35); color: #ff99aa;
-      font-weight: 700; display: none; cursor: pointer; font-size: 12px;
+      opacity: 0.85;
     }
 
-    /* Add panels (admin) */
-    .add-panel { display: none; margin: 10px 0 16px; gap: 8px; }
-    .add-panel input[type="url"], .add-panel input[type="text"] { flex: 1; min-width: 0; background: #0c1116; color: var(--fg); border: 1px solid var(--border); padding: 10px 12px; border-radius: 10px; }
-    .add-panel .btn { white-space: nowrap; }
+    .colors select {
+      background: #111;
+      color: #fff;
+      border: none;
+      padding: 6px 8px;
+      border-radius: 6px;
+      margin-right: 8px;
+    }
 
-    /* Floating admin toggle (başta gizli) */
-    .admin-toggle { position: fixed; right: 18px; bottom: 18px; display: none; z-index: 60; }
+    .delete-btn {
+      background: #000;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
 
-    /* Settings modal (API anahtarı vs.) */
-    .modal { position: fixed; inset: 0; display: none; place-items: center; backdrop-filter: blur(8px); background: rgba(0,0,0,.45); z-index: 80; }
-    .modal .box { width: 560px; max-width: calc(100% - 24px); background: #0e1319; border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 18px; }
-    .modal .box h3 { margin: 0 0 6px; }
-    .form-row { display: flex; gap: 8px; margin-top: 10px; }
-    .form-row input { flex: 1; background: #0c1116; color: var(--fg); border: 1px solid var(--border); padding: 10px 12px; border-radius: 10px; }
+    .delete-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
 
-    /* Section placeholders for DM ve büyüme sıralaması */
-    .placeholder { border: 1px dashed #223; border-radius: var(--radius); padding: 18px; color: var(--muted); text-align: center; }
+    .green {
+      background: linear-gradient(135deg, #00ff88, #00cc66);
+      box-shadow: 0 0 15px rgba(0,255,136,0.6);
+    }
 
-    /* Admin mod aktifken */
-    .admin .remove-btn { display: inline-flex; }
-    .admin .add-panel { display: flex; }
-    .admin .admin-toggle { display: inline-flex; }
+    .red {
+      background: linear-gradient(135deg, #ff4444, #cc0000);
+      box-shadow: 0 0 15px rgba(255,68,68,0.6);
+    }
 
-    /* Helper badges */
-    .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
-
-    @media (max-width: 600px) {
-      .card { grid-template-columns: 48px 1fr auto; }
-      .card .logo { width: 48px; height: 48px; }
+    .yellow {
+      background: linear-gradient(135deg, #ffee00, #ffcc00);
+      color: #000;
+      box-shadow: 0 0 15px rgba(255,238,0,0.7);
     }
   </style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-inner">
-      <div class="brand">
-        <div class="brand-badge">YT</div>
-        <div>YT Yönetim Paneli</div>
-        <span class="badge" title="Admin modunu aç/kapat: Alt+M">Beta</span>
-      </div>
-      <div class="header-actions">
-        <button id="openSettings" class="btn" title="Ayarlar (API anahtarı)">⚙️ Ayarlar</button>
-        <button id="toggleAdmin" class="btn" title="Admin modunu aç/kapat (Alt+M)">🛠️ Admin</button>
-      </div>
-    </div>
-  </header>
+  <div class="container">
+    <h1>Rakip Kanal Sıralaması</h1>
 
-  <main class="container" id="app">
-
-    <!-- UYARI: API anahtarı eksikse -->
-    <div id="apiWarning" class="section" style="display:none">
-      <div class="placeholder">
-        <strong>YouTube API anahtarı gerekli.</strong><br>
-        Canlı abone sayısını ve kanal bilgisini çekmek için <em>YOUTUBE_API_KEY</em> girin. Sağ üstten <b>Ayarlar</b>'a tıklayın.
-      </div>
+    <div class="add-channel">
+      <input id="channelLink" type="text" placeholder="YouTube kanal linkini yapıştır" />
+      <button id="addBtn">Ekle</button>
     </div>
 
-    <!-- Benim Kanallarım -->
-    <section class="section" id="mine">
-      <h2>Benim Kanallarım</h2>
-      <div class="hint">Karta tıklayınca kanal sayfası açılır. Ekleme/çıkarma için Admin modunu açın.</div>
-
-      <div class="add-panel" id="addMine">
-        <input id="mineUrl" type="url" placeholder="Kanal linkini yapıştır (ör: https://www.youtube.com/@kanal)" />
-        <button class="btn btn-primary" id="addMineBtn">Ekle</button>
-      </div>
-
-      <div class="grid" id="mineGrid"></div>
-    </section>
-
-    <!-- Rakip Kanallar -->
-    <section class="section" id="competitors">
-      <h2>Rakip Kanallar</h2>
-      <div class="hint">Aynı kart yapısı, sadece kategori farklı.</div>
-
-      <div class="add-panel" id="addCompetitor">
-        <input id="compUrl" type="url" placeholder="Rakip kanal linkini yapıştır" />
-        <button class="btn btn-primary" id="addCompBtn">Ekle</button>
-      </div>
-
-      <div class="grid" id="compGrid"></div>
-    </section>
-
-    <!-- DM ve büyüme sıralaması yer tutucu -->
-    <section class="section">
-      <h2>DM Kutusu (placeholder)</h2>
-      <div class="placeholder">UI resmine göre burada DM bileşeni gelecek. Şimdilik işlevsizlik istenmişti, sadece yer tutucu bırakıldı.</div>
-    </section>
-
-    <section class="section">
-      <h2>Büyüme Sıralaması (placeholder)</h2>
-      <div class="placeholder">Grafikler / tablo vs. daha sonra eklenecek. Şimdilik yer tutucu.</div>
-    </section>
-
-  </main>
-
-  <!-- Admin toggle floating (gerekirse) -->
-  <button class="btn admin-toggle" id="adminFab">Admin</button>
-
-  <!-- Ayarlar Modal -->
-  <div class="modal" id="settingsModal" aria-hidden="true">
-    <div class="box">
-      <h3>🧩 Ayarlar</h3>
-      <div style="color:var(--muted); font-size:13px">YouTube canlı abone sayısı için API anahtarı gerekir. Anahtar tarayıcıda <code>localStorage</code>'da tutulur. Açık kaynak yayınlarken yeni bir anahtar kullanmanız önerilir.</div>
-      <div class="form-row">
-        <input id="apiKeyInput" type="text" placeholder="YouTube API Key (v3)" />
-        <button class="btn btn-primary" id="saveApiKey">Kaydet</button>
-      </div>
-    </div>
+    <ul id="channelList"></ul>
   </div>
 
-  <!-- Firebase SDK ve app init (KULLANICININ VERDİĞİ) -->
   <script type="module">
-    // Firebase core
+    // ================= FIREBASE =================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      deleteDoc,
+      doc,
+      updateDoc,
+      onSnapshot,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-    // Kullanıcının verdiği config
     const firebaseConfig = {
       apiKey: "AIzaSyBy7DShn5TQQMEyPitUZ-9A-o6u0EgD08o",
       authDomain: "yt-sayt.firebaseapp.com",
@@ -236,335 +167,129 @@
       appId: "1:614904562607:web:f352a57fe3f4457077e55a"
     };
 
-    // Firebase başlat
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const channelsRef = collection(db, "channels");
 
-    // DOM referansları
-    const mineGrid = document.getElementById('mineGrid');
-    const compGrid = document.getElementById('compGrid');
-    const addMineBtn = document.getElementById('addMineBtn');
-    const addCompBtn = document.getElementById('addCompBtn');
-    const mineUrl = document.getElementById('mineUrl');
-    const compUrl = document.getElementById('compUrl');
+    // ================= YOUTUBE API =================
+    const API_KEY = 'AIzaSyCtw_vK-v4WFXqhoKLmimhFNHoQgJ6r48g';
 
-    const settingsModal = document.getElementById('settingsModal');
-    const openSettings = document.getElementById('openSettings');
-    const saveApiKey = document.getElementById('saveApiKey');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const toggleAdminBtn = document.getElementById('toggleAdmin');
-    const adminFab = document.getElementById('adminFab');
-    const apiWarning = document.getElementById('apiWarning');
+    let draggedItem = null;
 
-    // LocalStorage anahtar yönetimi
-    const API_KEY_STORAGE = 'YOUTUBE_API_KEY';
-    function getApiKey() { return localStorage.getItem(API_KEY_STORAGE) || ''; }
-    function setApiKey(v) { localStorage.setItem(API_KEY_STORAGE, v || ''); updateApiWarning(); }
+    async function extractChannelId(url) {
+      const channelMatch = url.match(/channel\/([A-Za-z0-9_-]+)/);
+      if (channelMatch) return channelMatch[1];
 
-    // Admin modu (başta kapalı)
-    let isAdmin = false;
-    function toggleAdmin(force) {
-      isAdmin = typeof force === 'boolean' ? force : !isAdmin;
-      document.body.classList.toggle('admin', isAdmin);
-    }
-
-    // Modal helpers
-    function openModal() { settingsModal.style.display = 'grid'; settingsModal.setAttribute('aria-hidden', 'false'); apiKeyInput.value = getApiKey(); apiKeyInput.focus(); }
-    function closeModal() { settingsModal.style.display = 'none'; settingsModal.setAttribute('aria-hidden', 'true'); }
-
-    openSettings.addEventListener('click', openModal);
-    settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeModal(); });
-    saveApiKey.addEventListener('click', () => { setApiKey(apiKeyInput.value.trim()); closeModal(); });
-
-    // Admin UI
-    toggleAdminBtn.addEventListener('click', () => toggleAdmin());
-    adminFab.addEventListener('click', () => toggleAdmin());
-    window.addEventListener('keydown', (e) => { if (e.altKey && (e.key === 'm' || e.key === 'M')) toggleAdmin(); });
-
-    // Uyarı: API anahtarı yoksa bilgi göster
-    function updateApiWarning() {
-      const hasKey = !!getApiKey();
-      apiWarning.style.display = hasKey ? 'none' : 'block';
-    }
-    updateApiWarning();
-
-    // Yardımcılar
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-    function formatSubs(n) {
-      n = Number(n || 0);
-      if (n >= 1_000_000_000) return (n/1_000_000_000).toFixed(2).replace(/\.00$/, '') + 'B';
-      if (n >= 1_000_000) return (n/1_000_000).toFixed(2).replace(/\.00$/, '') + 'M';
-      if (n >= 1_000) return (n/1_000).toFixed(1).replace(/\.0$/, '') + 'K';
-      return String(n);
-    }
-
-    // === Haftalık istatistik için yardımcılar ===
-    const todayKey = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
-    
-
-    async function saveSnapshot(channelId, subs, views, cat){
-      // aynı gün için sadece bir kez yaz
-      const ref = doc(db, cat, channelId, "stats", todayKey());
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        await setDoc(ref, { subs: Number(subs||0), views: Number(views||0), createdAt: serverTimestamp() });
-      }
-    }
-    import { query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
-    async function getLast7DaysStats(channelId, cat) {
-  // Son 7 günün ilk ve son kaydını bul
-  const statsCol = collection(db, cat, channelId, "stats");
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const cutoff = sevenDaysAgo.toISOString().slice(0,10); // "YYYY-MM-DD"
-
-  // Doküman id'si tarih string olduğu için alfabetik sıralama = kronolojik
-  const q = query(statsCol, where("__name__", ">=", cutoff), orderBy("__name__"));
-  const snap = await getDocs(q);
-
-  if (snap.empty) return { subsDelta: 0, viewsDelta: 0 };
-
-  // İlk ve son kayıttaki abone/izlenme sayıları
-  let first = snap.docs[0].data();
-  let last  = snap.docs[snap.docs.length - 1].data();
-
-  return {
-    subsDelta: (last.subs || 0) - (first.subs || 0),
-    viewsDelta: (last.views || 0) - (first.views || 0)
-  };
-}
-    
-
-    // Kanal linkinden ID/handle çöz (yalnızca link alıyoruz)
-    function parseChannelFromUrl(url) {
-      try {
-        const u = new URL(url);
-        const mId = u.pathname.match(/\/channel\/(UC[0-9A-Za-z_-]{22,})/);
-        if (mId) return { type: 'id', value: mId[1] };
-        const mHandle = u.pathname.match(/\/@([A-Za-z0-9._-]{2,})/);
-        if (mHandle) return { type: 'handle', value: '@' + mHandle[1] };
-        const mUser = u.pathname.match(/\/c\/([A-Za-z0-9._-]{2,})/);
-        if (mUser) return { type: 'username', value: mUser[1] };
-        return { type: 'search', value: url };
-      } catch (e) {
-        if (url.startsWith('@')) return { type: 'handle', value: url };
-        return { type: 'search', value: url };
-      }
-    }
-
-    // YouTube API istekleri
-    async function ytFetch(endpoint, params) {
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error('API key missing');
-      const q = new URLSearchParams({ key: apiKey, ...params });
-      const url = `https://www.googleapis.com/youtube/v3/${endpoint}?${q.toString()}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`YouTube API hatası: ${res.status} ${txt}`);
-      }
-      return res.json();
-    }
-
-    async function resolveChannelId(inputUrl) {
-      const p = parseChannelFromUrl(inputUrl);
-      if (p.type === 'id') return p.value;
-      if (p.type === 'handle') {
-        const j = await ytFetch('channels', { part: 'id', forHandle: p.value });
-        if (j.items && j.items[0]) return j.items[0].id;
-      }
-      if (p.type === 'username') {
-        const j = await ytFetch('channels', { part: 'id', forUsername: p.value });
-        if (j.items && j.items[0]) return j.items[0].id;
-      }
-      const j = await ytFetch('search', { part: 'snippet', q: p.value, type: 'channel', maxResults: 1 });
-      if (j.items && j.items[0]?.snippet?.channelId) return j.items[0].snippet.channelId;
-      throw new Error('Kanal bulunamadı. Lütfen geçerli bir kanal linki verin.');
-    }
-
-    async function fetchChannelInfo(channelId) {
-      const j = await ytFetch('channels', { part: 'snippet,statistics', id: channelId });
-      const it = j.items && j.items[0];
-      if (!it) throw new Error('Kanal bilgisi alınamadı.');
-      const { title, thumbnails, customUrl } = it.snippet;
-      const logo = (thumbnails && (thumbnails.high?.url || thumbnails.default?.url)) || '';
-      const subs = Number(it.statistics?.subscriberCount ?? 0);   // gizliyse 0
-      const views = Number(it.statistics?.viewCount ?? 0);
-      const url   = customUrl ? `https://www.youtube.com/${customUrl}` : `https://www.youtube.com/channel/${channelId}`;
-      return { channelId, title, logo, subscribers: subs, views, url };
-    }
-
-    // Firestore koleksiyon yolları
-    const colMine = collection(db, 'myChannels');
-    const colComp = collection(db, 'competitors');
-
-    // Doc id olarak channelId kullan (idempotent)
-    async function addChannel(colRef, inputUrl) {
-      const channelId = await resolveChannelId(inputUrl);
-      const info = await fetchChannelInfo(channelId);
-      await setDoc(doc(colRef, channelId), {
-  url: info.url,
-  channelId,
-  title: info.title,
-  logo: info.logo,
-  subscribersCache: info.subscribers,
-  createdAt: Date.now(),   // ✅ client tarafı timestamp
-}, { merge: true });
-
-      // Ekleme sırasında snapshot da kaydet (bugünün kaydı yoksa)
-      const cat = colRef === colMine ? 'myChannels' : 'competitors';
-      await saveSnapshot(channelId, info.subscribers, info.views, cat);
-
-      return info;
-    }
-
-    async function removeChannel(colRef, channelId) {
-      await deleteDoc(doc(colRef, channelId));
-    }
-
-    // UI render (tooltip ile)
-    function channelCardHTML(data, category, s = { subsDelta: 0, viewsDelta: 0 }) {
-  const subsText = data.subscribersLive != null
-    ? formatSubs(data.subscribersLive)
-    : (data.subscribersCache != null
-        ? formatSubs(data.subscribersCache) + ' (cache)'
-        : 'Gizli');
-
-  function sign(v) { return v > 0 ? '+' : (v < 0 ? '−' : ''); }
-
-  return `
-    <div class="card" data-id="${data.channelId}" data-cat="${category}">
-      <div class="logo">
-        <img src="${data.logo || ''}" alt="logo" 
-             style="width:100%;height:100%;object-fit:cover" 
-             onerror="this.style.display='none'"/>
-      </div>
-      <div class="meta">
-        <div class="name" title="${data.title || ''}">${data.title || '—'}</div>
-        <div class="subs">Abone: <span>${subsText}</span></div>
-      </div>
-      <div class="go"><a href="${data.url}" target="_blank" rel="noopener">↗︎ Aç</a></div>
-      <button class="remove-btn" title="Sil">Sil</button>
-      <div class="tooltip">
-        <img src="abonelik.png" 
-             alt="abone" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">
-        Abone artışı (7g): ${sign(s.subsDelta)}${formatSubs(Math.abs(s.subsDelta))}<br>
-        
-        <img src="izlenme.png" 
-             alt="izlenme" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">
-        İzlenme artışı (7g): ${sign(s.viewsDelta)}${formatSubs(Math.abs(s.viewsDelta))}
-      </div>
-    </div>`;
-}
-
-    function bindCardEvents(rootEl, colRef) {
-      rootEl.querySelectorAll('.card .remove-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const card = e.target.closest('.card');
-          const id = card?.dataset.id; if (!id) return;
-          if (!confirm('Kanalı silmek istediğine emin misin?')) return;
-          await removeChannel(colRef, id);
-        });
-      });
-      rootEl.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', (e) => {
-          const url = card.querySelector('a')?.href; if (url) window.open(url, '_blank');
-        });
-      });
-    }
-
-    // Canlı veri çek ve hızlıca sadece abone sayısını güncelle (opsiyonel)
-    async function refreshLiveStats(container) {
-      const ids = Array.from(container.querySelectorAll('.card')).map(c => c.dataset.id).filter(Boolean);
-      const apiKey = getApiKey(); if (!apiKey || ids.length === 0) return;
-      for (let i = 0; i < ids.length; i += 50) {
-        const slice = ids.slice(i, i+50);
-        try {
-          const j = await ytFetch('channels', { part: 'statistics', id: slice.join(',') });
-          const map = new Map((j.items||[]).map(it => [it.id, Number(it.statistics?.subscriberCount ?? NaN)]));
-          slice.forEach(id => {
-            const card = container.querySelector(`.card[data-id="${id}"]`);
-            const subs = map.get(id);
-            if (card && isFinite(subs)) {
-  const span = card.querySelector('.subs span');
-  if (span) span.textContent = formatSubs(subs);
-
-  // 🔥 Firestore’a güncel abone sayısını yaz
-  const cat = card.dataset.cat; // 'mine' veya 'comp'
-  const colRef = (cat === 'mine') ? colMine : colComp;
-  setDoc(doc(colRef, id), {
-    subscribersCache: subs,
-    subscribersLive: subs,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
-}
-          });
-        } catch (err) {
-          console.warn('Canlı istatistik çekilemedi:', err);
+      const handleMatch = url.match(/@([A-Za-z0-9._-]+)/);
+      if (handleMatch) {
+        const username = handleMatch[1];
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${username}&key=${API_KEY}`);
+        const json = await res.json();
+        if (json.items && json.items.length > 0) {
+          return json.items[0].snippet.channelId;
         }
-        await sleep(350);
       }
+      return null;
     }
 
+    async function fetchChannelData(channelId) {
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${API_KEY}`);
+      const json = await res.json();
+      const ch = json.items[0];
 
-const qMine = query(colMine, orderBy("createdAt", "asc"));
-const qComp = query(colComp, orderBy("createdAt", "asc"));
-
-// ---- YENİSİ ----
-onSnapshot(qMine, async (snap) => {
-  const pieces = await Promise.all(
-    snap.docs.map(async (docu) => {
-      const d = docu.data();
-      const stats = await getLast7DaysStats(d.channelId, 'myChannels');
-      return channelCardHTML(d, 'mine', stats);
-    })
-  );
-  mineGrid.innerHTML = pieces.join('');
-  bindCardEvents(mineGrid, colMine); // 🔑 silme butonlarını aktif et
-});
-
-onSnapshot(qComp, async (snap) => {
-  const pieces = await Promise.all(
-    snap.docs.map(async (docu) => {
-      const d = docu.data();
-      const stats = await getLast7DaysStats(d.channelId, 'competitors');
-      return channelCardHTML(d, 'comp', stats);
-    })
-  );
-  compGrid.innerHTML = pieces.join('');
-  bindCardEvents(compGrid, colComp); // 🔑 silme butonlarını aktif et
-});
-    
-
-    // Ekleme butonları
-    async function handleAdd(colRef, inputEl) {
-      const url = inputEl.value.trim(); if (!url) return alert('Link gir');
-      try {
-        await addChannel(colRef, url); // ekleyince snapshot dinleyicisi zaten tetiklenir
-        inputEl.value = '';
-      } catch (e) {
-        alert(e.message || 'Hata');
-      }
+      return {
+        channelId,
+        name: ch.snippet.title,
+        logo: ch.snippet.thumbnails.high.url,
+        subs: Number(ch.statistics.subscriberCount),
+      };
     }
-    addMineBtn.addEventListener('click', () => handleAdd(colMine, mineUrl));
-    addCompBtn.addEventListener('click', () => handleAdd(colComp, compUrl));
-    mineUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(colMine, mineUrl); });
-    compUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAdd(colComp, compUrl); });
 
-    // İlk açılış: admin gizli olsun; FAB gösterelim (isteğe bağlı)
-    document.body.classList.remove('admin');
-    // İlk açılışta hemen çalıştır
-refreshLiveStats(mineGrid);
-refreshLiveStats(compGrid);
+    // ================= UI & FIRESTORE =================
+    window.addChannel = async function addChannel() {
+      const link = document.getElementById('channelLink').value.trim();
+      if (!link) return;
 
-// Sonraki sorgular: her 60 sn
-setInterval(() => {
-  refreshLiveStats(mineGrid);
-  refreshLiveStats(compGrid);
-}, 60_000);
-    adminFab.style.display = 'inline-flex';
+      const channelId = await extractChannelId(link);
+      if (!channelId) return alert('Geçerli bir YouTube linki gir');
+
+      const data = await fetchChannelData(channelId);
+
+      await addDoc(channelsRef, {
+        ...data,
+        color: 'green',
+        order: Date.now()
+      });
+
+      document.getElementById('channelLink').value = '';
+    }
+
+    function renderChannel(docSnap) {
+      const data = docSnap.data();
+      const li = document.createElement('li');
+      li.className = `channel ${data.color}`;
+      li.draggable = true;
+      li.dataset.id = docSnap.id;
+
+      li.innerHTML = `
+        <div class="number"></div>
+        <img class="logo" src="${data.logo}" />
+        <div class="info">
+          <div class="name">${data.name}</div>
+          <div class="subs">${data.subs.toLocaleString('tr-TR')} abone</div>
+        </div>
+        <div class="colors">
+          <select>
+            <option value="green" ${data.color==='green'?'selected':''}>Yeşil</option>
+            <option value="red" ${data.color==='red'?'selected':''}>Kırmızı</option>
+            <option value="yellow" ${data.color==='yellow'?'selected':''}>Sarı</option>
+          </select>
+          <button class="delete-btn">Sil</button>
+        </div>
+      `;
+
+      li.querySelector('select').onchange = async e => {
+        await updateDoc(doc(db, 'channels', docSnap.id), { color: e.target.value });
+      };
+
+      li.querySelector('.delete-btn').onclick = async () => {
+        await deleteDoc(doc(db, 'channels', docSnap.id));
+      };
+
+      addDragEvents(li);
+      return li;
+    }
+
+    function addDragEvents(item) {
+      item.addEventListener('dragstart', () => draggedItem = item);
+      item.addEventListener('dragover', e => e.preventDefault());
+      item.addEventListener('drop', async () => {
+        if (draggedItem && draggedItem !== item) {
+          const list = document.getElementById('channelList');
+          list.insertBefore(draggedItem, item);
+
+          [...list.children].forEach(async (el, index) => {
+            await updateDoc(doc(db, 'channels', el.dataset.id), { order: index });
+          });
+        }
+      });
+    }
+
+    // ================= REALTIME LISTENER =================
+    document.getElementById('addBtn').addEventListener('click', addChannel);
+
+    const q = query(channelsRef, orderBy('order'));
+    onSnapshot(q, snapshot => {
+      const list = document.getElementById('channelList');
+      list.innerHTML = '';
+      snapshot.forEach(docSnap => {
+        list.appendChild(renderChannel(docSnap));
+      });
+
+      [...list.children].forEach((item, index) => {
+        item.querySelector('.number').innerText = index + 1;
+      });
+    });
   </script>
 </body>
 </html>
